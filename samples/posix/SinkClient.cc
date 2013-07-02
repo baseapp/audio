@@ -165,7 +165,7 @@ int main(int argc, char** argv, char** envArg) {
         connectArgs = "unix:abstract=alljoyn";
 
     /* Create message bus */
-    BusAttachment* msgBus = new BusAttachment("SinkClient", true);
+    BusAttachment* msgBus = new BusAttachment("SinkClient", true, 128);
 
     /* Start the msg bus */
     if (status == ER_OK) {
