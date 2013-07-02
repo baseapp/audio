@@ -72,19 +72,16 @@ void MyAllJoynCode::SetDataSourceHelper()
     if (isWavFile) {
         if (mCurrentDataSource == NULL)
             mCurrentDataSource = new WavDataSource();
-        ((WavDataSource*)mCurrentDataSource)->Open(mDataSourcePath);
     }
     if (mCurrentDataSource != NULL) {
         mSinkPlayer->SetDataSource(mCurrentDataSource);
-        if (wasStopped)
-            mSinkPlayer->OpenAllSinks();
-        wasStopped = false;
+        mSinkPlayer->CloseAllSinks();
+        wasStopped = true;
     }
 }
 
 void MyAllJoynCode::AddSink(const char*name, const char*path, uint16_t port)
 {
-    //LOGD("Name: %s, Path: %s, port:%d", name, path, port);
     if (!mSinkPlayer->HasSink(name))
         mSinkPlayer->AddSink(name, port, path);
 }
@@ -97,12 +94,14 @@ void MyAllJoynCode::RemoveSink(const char*name)
 
 void MyAllJoynCode::Start()
 {
-    if(mSinkPlayer->IsPlaying())
-    	Stop();
+    int8_t strLenSource = strlen(mDataSourcePath);
+    if (strLenSource > 4 && 0 == strncmp(mDataSourcePath + strLenSource - 4, ".wav", 4)) {
+        ((WavDataSource*)mCurrentDataSource)->Open(mDataSourcePath);
+    }
+    mSinkPlayer->Play();
     if (wasStopped)
         mSinkPlayer->OpenAllSinks();
     wasStopped = false;
-    mSinkPlayer->Play();
 }
 
 void MyAllJoynCode::Pause()
@@ -113,13 +112,8 @@ void MyAllJoynCode::Pause()
 
 void MyAllJoynCode::Stop()
 {
-    if (mSinkPlayer->IsPlaying()) {
+    if (mSinkPlayer->IsPlaying() && !wasStopped) {
         mSinkPlayer->CloseAllSinks();
-        int8_t strLenSource = strlen(mDataSourcePath);
-        if (strLenSource > 4 && 0 == strncmp(mDataSourcePath + strLenSource - 4, ".wav", 4)) {
-            ((WavDataSource*)mCurrentDataSource)->Close();
-            ((WavDataSource*)mCurrentDataSource)->Open(mDataSourcePath);
-        }
         wasStopped = true;
     }
 }

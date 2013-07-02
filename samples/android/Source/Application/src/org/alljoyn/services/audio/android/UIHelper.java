@@ -47,7 +47,8 @@ public class UIHelper {
     private static UIHelper instance;
     
     private AllJoynAudioServiceMediaPlayer mMediaPlayer;
-    private boolean mShouldPrepare;
+    private boolean mWasPaused = false;
+    private boolean mIsNewSongSelected = false;
     
     private SinkSelectDialog mSinkSelectDialog;
     private List<String> mSongFileList = new ArrayList<String>();
@@ -58,6 +59,7 @@ public class UIHelper {
     private Button mMuteSinksButton;
     private float volume = 1.0F;
     private View mPrevSelectedSong = null;
+    private String mSelectedDataSource = null;
     
     public UIHelper(Activity activity) {
     	instance = this;
@@ -82,12 +84,16 @@ public class UIHelper {
 			@Override
 			public void SinkReady(String speakerName) {
 				//Sink that we connected to is now ready lets call play
-				mMediaPlayer.start();
+				boolean isPlaying = mMediaPlayer.isPlaying();
+				if(!isPlaying)
+					setupSong();
+				playSong();
 			}
 			
 			@Override
-			public void SinkRemoved(String speakerName) {
-				
+			public void SinkRemoved(String speakerName, boolean lost) {
+				if(lost)
+					mSinkSelectDialog.RemoveSink(speakerName);
 			}
 
 			@Override
@@ -108,30 +114,12 @@ public class UIHelper {
 				view.setSelected(true);
 				view.setBackgroundColor(Color.parseColor("#99555555"));
 				mPrevSelectedSong = view;
-				try {
-					boolean isPlaying = mMediaPlayer.isPlaying();
-					mMediaPlayer.reset();
-					mMediaPlayer.setDataSource(mSongFileList.get(position));
-					mShouldPrepare = true;
-					if(isPlaying) {
-						try{
-							mMediaPlayer.prepare();
-							mMediaPlayer.seekTo(0);
-						} catch(Exception ex) {
-							ex.printStackTrace();
-						}
-						mShouldPrepare = false;
-						mMediaPlayer.start();
-					}
-				} catch (IllegalStateException e) {
-					e.printStackTrace();
-				} catch (IllegalArgumentException e) {
-					e.printStackTrace();
-				} catch (SecurityException e) {
-					e.printStackTrace();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				mSelectedDataSource = mSongFileList.get(position);
+				mIsNewSongSelected = true;
+				boolean isPlaying = mMediaPlayer.isPlaying();
+				setupSong();
+				if(isPlaying)
+					playSong();
 			}
     	});
     	
@@ -139,21 +127,9 @@ public class UIHelper {
     	mPlayButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				try {
-					if(mShouldPrepare) {
-						try{
-							mMediaPlayer.prepare();
-							mMediaPlayer.seekTo(0);
-						} catch(Exception ex) {
-							ex.printStackTrace();
-						}
-					}
-					mShouldPrepare = false;
-					System.out.println("Going to call start again: "+mMediaPlayer.isPlaying());
-					mMediaPlayer.start();
-				} catch (IllegalStateException e) {
-					e.printStackTrace();
-				}
+				if(!mWasPaused)
+					setupSong();
+				playSong();
 			}
     	});
     	
@@ -163,6 +139,7 @@ public class UIHelper {
 			public void onClick(View arg0) {
     			try{
     				mMediaPlayer.pause();
+    				mWasPaused = true;
     			}catch(Exception e) {
     				e.printStackTrace();
     			}
@@ -175,11 +152,10 @@ public class UIHelper {
 			public void onClick(View arg0) {
     			try{
 					mMediaPlayer.stop();
+					mWasPaused = false;
     			}catch(Exception e) {
     				e.printStackTrace();
-    				mMediaPlayer.reset();
     			}
-				mShouldPrepare = true;
 			}
     	});
     	
@@ -202,6 +178,32 @@ public class UIHelper {
     				mMuteSinksButton.setText("Mute All Sinks");
     		}
     	});
+    }
+    
+    private void setupSong() {
+    	try {
+    		mWasPaused = false;
+			mMediaPlayer.reset();
+			mMediaPlayer.setDataSource(mSelectedDataSource);
+			mMediaPlayer.prepare();
+		} catch (IllegalStateException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+    }
+    
+    private void playSong() {
+    	try {
+    		mMediaPlayer.seekTo(0);
+			mMediaPlayer.start();
+		} catch (IllegalStateException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+		}
     }
     
     public void onDestroy() {
@@ -243,6 +245,9 @@ public class UIHelper {
     }
     
     private String[] buildSongList() {
+    	mActivity.sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED,
+    			Uri.parse("file://"+ Environment.getExternalStorageDirectory()))); 
+    	
     	String[] fields = { MediaStore.Audio.Media._ID,
                 MediaStore.Audio.Media.DATA,
                 MediaStore.Audio.Media.TITLE,
@@ -267,8 +272,6 @@ public class UIHelper {
         }
         
         if(songList.size() == 0) {
-        	mActivity.sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED,
-        			Uri.parse("file://"+ Environment.getExternalStorageDirectory()))); 
         	AlertDialog.Builder alertBuilder = new AlertDialog.Builder(mActivity);
     		alertBuilder.setMessage("Please install wave files on device and then relaunch the application.");
     		alertBuilder.setNegativeButton("Quit", new DialogInterface.OnClickListener() {

@@ -144,6 +144,10 @@ bool AndroidDevice::Open(const char*format, uint32_t sampleRate, uint32_t numCha
         return false;
     }
 
+    if (mMute) {
+        SetMute(true);
+    }
+
     //Compute the frame size and return how many bytes we want the AllJoyn Audio Streaming Engine to buffer
     mNumberOfFrames = (16 >> 3) * numChannels;
     bufferSize = BYTES_PER_FRAME * mNumberOfFrames;
@@ -303,6 +307,7 @@ bool AndroidDevice::SetMute(bool mute)
         return false;
     SLresult result = (*mVolume)->SetMute(mVolume, mute ? SL_BOOLEAN_TRUE : SL_BOOLEAN_FALSE);
     if (result == SL_RESULT_SUCCESS) {
+        mMute = mute;
         mListenersMutex.Lock();
         AndroidDevice::Listeners::iterator it = mListeners.begin();
         while (it != mListeners.end()) {

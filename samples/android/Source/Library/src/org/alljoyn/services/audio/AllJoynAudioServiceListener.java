@@ -23,7 +23,7 @@ public interface AllJoynAudioServiceListener {
 
 	public void SinkReady( String speakerName );
 	
-	public void SinkRemoved( String speakerName );
+	public void SinkRemoved( String speakerName, boolean lost );
 
 	public void SinkError( String speakerName );
 }

@@ -30,7 +30,7 @@ class MyAllJoynCode : public ajn::services::SinkSearcher, public ajn::services::
   public:
     MyAllJoynCode(JavaVM* vm, jobject jobj) : vm(vm), jobj(jobj),
         mBusAttachment(NULL), mSinkPlayer(NULL), mCurrentDataSource(NULL),
-        mDataSourcePath(NULL), isMuted(false), wasStopped(false)  { };
+        mDataSourcePath(NULL), isMuted(false), wasStopped(true)  { };
 
     ~MyAllJoynCode() {
         Release();

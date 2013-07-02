@@ -870,10 +870,13 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
 
         si->timestampMutex.Lock();
         si->timestamp += (uint64_t)(((double)numBytes / bytesPerSecond) * 1000000000);
+        if (numBytes > si->inputDataBytesRemaining)
+            numBytes = si->inputDataBytesRemaining;
         si->inputDataBytesRemaining -= numBytes;
         si->timestampMutex.Unlock();
 
         bytesEmitted += numBytes;
+
         QCC_DbgTrace(("Emitted %i bytes", numBytes));
     }
 
@@ -931,6 +934,8 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
 
             si->timestampMutex.Lock();
             si->timestamp += (uint64_t)(((double)numBytes / bytesPerSecond) * 1000000000);
+            if (numBytes > si->inputDataBytesRemaining)
+                numBytes = si->inputDataBytesRemaining;
             si->inputDataBytesRemaining -= numBytes;
             si->timestampMutex.Unlock();
         }

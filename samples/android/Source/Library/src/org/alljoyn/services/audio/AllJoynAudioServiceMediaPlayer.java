@@ -112,8 +112,9 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	//Should stream over alljoyn
     	//Check if the path is for a wav file, if so pass it on down and let it stream as is
     	mDataSourcePath = path;
-    	if(path.endsWith(".wav"))
+    	if(path.endsWith(".wav")) {
     		mBusHandler.sendMessage(mBusHandler.obtainMessage(SET_DATA_SOURCE, path));
+    	}
     	try{
     		super.setDataSource(path);
     	}catch(IllegalStateException e) {
@@ -236,7 +237,6 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     			Prepare("alljoyn.audio.streaming.IoE");
     			break;
     		case SET_DATA_SOURCE:
-    			Log.d(TAG, "Calling down to SetDataSource");
     			SetDataSource((String)msg.obj);
     			break;
     		case SET_ALLJOYN_SPEAKER:
@@ -296,6 +296,6 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
 
 	private void SinkRemoved( String name, boolean lost ) {
 		if(mListener != null)
-			mListener.SinkRemoved(name);
+			mListener.SinkRemoved(name, lost);
 	}
 }
