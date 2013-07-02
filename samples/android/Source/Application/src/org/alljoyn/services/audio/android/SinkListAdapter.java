@@ -70,13 +70,7 @@ public class SinkListAdapter extends ArrayAdapter<Object> {
 			mList.add(new SessionInfoHolder(name, path, port));
 			if(!mCheckedList.containsKey(name))
 				mCheckedList.put(name, Boolean.FALSE);
-			if(mActivity != null) {
-				mActivity.runOnUiThread(new Runnable() {
-					public void run() {
-						notifyDataSetChanged();	
-					}
-				});
-			}
+			notifyDataSetChanged();	
 		}
 	}
 	
@@ -85,13 +79,7 @@ public class SinkListAdapter extends ArrayAdapter<Object> {
 		if(-1 != foundLoc) {
 			mList.remove(foundLoc);
 			mCheckedList.remove(name);
-			if(mActivity != null) {
-				mActivity.runOnUiThread(new Runnable() {
-					public void run() {
-						notifyDataSetChanged();	
-					}
-				});
-			}
+			notifyDataSetChanged();	
 		}
 	}
 	
