@@ -35,7 +35,7 @@ namespace services {
 
 AndroidDevice::AndroidDevice() :
     mMute(false), mVolumeValue(100), mSLEngineObject(NULL), mOutputMixObject(NULL), mBufferQueuePlayerObject(NULL),
-    mBufferQueue(NULL), mNumberOfFrames(0), mBuffersAvailable(2), mBufferIndex(0), mPlay(NULL)
+    mPlay(NULL), mBufferQueue(NULL), mNumberOfFrames(0), mBuffersAvailable(2), mBufferIndex(0)
 {
     mBufferMutex = new qcc::Mutex();
     mAudioBuffers = new uint8_t *[NUM_BUFFERS];
