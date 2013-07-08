@@ -20,7 +20,7 @@ import android.os.Bundle;
 import android.app.Activity;
 import android.content.Intent;
 
-public class AllJoynTutorialActivity extends Activity {
+public class EmptyActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
