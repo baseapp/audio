@@ -17,7 +17,7 @@
 package org.alljoyn.services.audio;
 
 public interface AllJoynAudioServiceListener {
-	public void SinkFound( String speakerName, String speakerPath, short speakerPort );
+	public void SinkFound( String speakerName, String speakerPath, String friendlyName, short speakerPort );
 
 	public void SinkLost( String speakerName );
 

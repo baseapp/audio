@@ -274,9 +274,9 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	}
     }
     
-	private void SinkFound( String name, String path, short port ) {
+	private void SinkFound( String name, String path, String friendlyName, short port ) {
 		if(mListener != null)
-			mListener.SinkFound(name, path, port);
+			mListener.SinkFound(name, path, friendlyName, port);
 	}
 
 	private void SinkLost( String name ) {

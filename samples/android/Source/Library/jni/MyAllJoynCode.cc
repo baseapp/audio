@@ -159,6 +159,7 @@ void MyAllJoynCode::Release()
 void MyAllJoynCode::SinkFound(Service*sink) {
     const char*name = sink->name.c_str();
     const char*path = sink->path.c_str();
+    const char*friendly = sink->friendlyName.c_str();
     LOGD("Found %s objectPath=%s, sessionPort=%d\n", name, path, sink->port);
     JNIEnv* env;
     jint jret = vm->GetEnv((void**)&env, JNI_VERSION_1_2);
@@ -167,15 +168,17 @@ void MyAllJoynCode::SinkFound(Service*sink) {
     }
 
     jclass jcls = env->GetObjectClass(jobj);
-    jmethodID mid = env->GetMethodID(jcls, "SinkFound", "(Ljava/lang/String;Ljava/lang/String;S)V");
+    jmethodID mid = env->GetMethodID(jcls, "SinkFound", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;S)V");
     if (mid == 0) {
         LOGD("Failed to get Java SinkFound");
     } else {
         jstring jName = env->NewStringUTF(name);
         jstring jPath = env->NewStringUTF(path);
-        env->CallVoidMethod(jobj, mid, jName, jPath, sink->port);
+        jstring jFriendly = env->NewStringUTF(friendly);
+        env->CallVoidMethod(jobj, mid, jName, jPath, jFriendly, sink->port);
         env->DeleteLocalRef(jName);
         env->DeleteLocalRef(jPath);
+        env->DeleteLocalRef(jFriendly);
     }
     if (JNI_EDETACHED == jret) {
         vm->DetachCurrentThread();

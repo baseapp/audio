@@ -72,10 +72,10 @@ public class UIHelper {
     public void init() {
     	mMediaPlayer.setAllJoynAudioServiceListener(new AllJoynAudioServiceListener() {
 			@Override
-			public void SinkFound(final String speakerName, final String speakerPath, final short speakerPort) {
+			public void SinkFound(final String speakerName, final String speakerPath, final String friendlyName, final short speakerPort) {
 				mActivity.runOnUiThread(new Runnable() {
 					public void run() {
-						mSinkSelectDialog.AddSink(speakerName, speakerPath, speakerPort);
+						mSinkSelectDialog.AddSink(speakerName, speakerPath, friendlyName, speakerPort);
 					}
 				});
 			}

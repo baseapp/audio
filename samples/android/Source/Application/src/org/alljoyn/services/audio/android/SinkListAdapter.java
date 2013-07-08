@@ -41,11 +41,13 @@ public class SinkListAdapter extends ArrayAdapter<Object> {
 	class SessionInfoHolder{
 		public String name;
 		public String path;
+		public String friendlyName;
 		public short port;
 
-		public SessionInfoHolder(String name, String path, short port){
+		public SessionInfoHolder(String name, String path, String friendlyName, short port){
 			this.name = name;
 			this.path = path;
+			this.friendlyName = friendlyName;
 			this.port = port;
 		}
 	}
@@ -65,9 +67,9 @@ public class SinkListAdapter extends ArrayAdapter<Object> {
 		return -1;
 	}
 	
-	public void add(String name, String path, short port) {
+	public void add(String name, String path, String friendlyName, short port) {
 		if(-1 == foundLoc(name)) {
-			mList.add(new SessionInfoHolder(name, path, port));
+			mList.add(new SessionInfoHolder(name, path, friendlyName, port));
 			if(!mCheckedList.containsKey(name))
 				mCheckedList.put(name, Boolean.FALSE);
 			notifyDataSetChanged();	
@@ -176,7 +178,7 @@ public class SinkListAdapter extends ArrayAdapter<Object> {
 					}
 				}
 			});
-			cb.setText(info.name); 
+			cb.setText(info.friendlyName); 
 		}		
 		return convertView;
 	}

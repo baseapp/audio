@@ -44,8 +44,8 @@ public class SinkSelectDialog extends DialogFragment {
 		mSinkListAdapter = new SinkListAdapter(activity, R.layout.genericitem);
 	}
 	
-	public void AddSink(String speakerName, String speakerPath, short speakerPort) {
-		mSinkListAdapter.add(speakerName, speakerPath, speakerPort);
+	public void AddSink(String speakerName, String speakerPath, String friendlyName, short speakerPort) {
+		mSinkListAdapter.add(speakerName, speakerPath, friendlyName, speakerPort);
 	}
 	
 	public void RemoveSink(String speakerName) {
@@ -77,6 +77,4 @@ public class SinkSelectDialog extends DialogFragment {
     	});
 		return view;
 	}
-	
-	
 }
