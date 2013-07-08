@@ -43,7 +43,7 @@ class AndroidDevice : public AudioDevice {
     ~AndroidDevice();
 
     bool Open(const char*format, uint32_t sampleRate, uint32_t numChannels, uint32_t& bufferSize);
-    void Close();
+    void Close(bool drain = false);
     bool Pause();
     bool Play();
     bool Recover();

@@ -72,8 +72,12 @@ class PortObject : public ajn::BusObject {
     /**
      * Does cleanup that can't be done in destructor.  This must be
      * called before object is deleted.
+     *
+     * @param[in] drain true to render any buffered data before
+     *                  returning.  false to drop any buffered data
+     *                  and return immediately.
      */
-    virtual void Cleanup();
+    virtual void Cleanup(bool drain = false);
 
     /**
      * Handles a bus request to read a property from this object.

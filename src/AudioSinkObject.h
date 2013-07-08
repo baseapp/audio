@@ -78,7 +78,7 @@ class AudioSinkObject : public PortObject, public AudioDeviceListener {
     ~AudioSinkObject();
 
   protected:
-    void Cleanup();
+    void Cleanup(bool drain = false);
 
   private:
     QStatus Get(const char* ifcName, const char* propName, ajn::MsgArg& val);

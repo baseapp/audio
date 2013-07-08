@@ -56,7 +56,7 @@ PortObject::~PortObject() {
     }
 }
 
-void PortObject::Cleanup() {
+void PortObject::Cleanup(bool drain) {
     if (mConfiguration != NULL) {
         delete [] mConfiguration->parameters;
         delete mConfiguration;

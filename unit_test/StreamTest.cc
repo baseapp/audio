@@ -955,3 +955,210 @@ TEST_F(StreamTest, GetInterfaceVersions) {
     EXPECT_EQ(ER_OK, GetInterfaceVersion(port, METADATA_SINK_INTERFACE, version));
     EXPECT_GE(version, 1);
 }
+
+/*
+ * There's currently no way to tell from the sender whether the sink
+ * drops or drains its buffered data.  The Drop* and Drain* tests
+ * below need to be manually verified by turning on debug tracing on
+ * the sink and seeing that it drops or drains correctly.
+ */
+TEST_F(StreamTest, DropWhenIdle) {
+
+    TestFixture* A = new TestFixture();
+    ProxyBusObject* streamA = A->CreateStream();
+    QStatus status = A->OpenStream(streamA);
+    EXPECT_EQ(status, ER_OK);
+    ProxyBusObject* portA = GetPort(streamA);
+    ASSERT_TRUE(portA);
+
+    Capability capability;
+    A->SetRawCapability(capability, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE);
+    EXPECT_EQ(ER_OK, A->ConfigurePort(portA, &capability));
+    uint32_t fifoSize;
+    EXPECT_EQ(ER_OK, A->GetFifoSize(portA, fifoSize));
+    A->RegisterSignalHandler(portA->GetPath().c_str());
+
+    uint8_t playState;
+    EXPECT_EQ(ER_OK, A->GetPlayState(playState));
+    EXPECT_EQ(IDLE, playState);
+
+    TestFixture* B = new TestFixture();
+    ProxyBusObject* streamB = B->CreateStream();
+    status = B->OpenStream(streamB);
+    EXPECT_EQ(status, ER_OK);
+
+    String newOwner;
+    EXPECT_EQ(A->WaitForOwnershipLost(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(A->GetNewOwner(newOwner), ER_OK);
+    EXPECT_STREQ(newOwner.c_str(), B->GetUniqueName().c_str());
+
+    delete streamB;
+    delete B;
+    delete streamA;
+    delete A;
+}
+
+TEST_F(StreamTest, DrainWhenIdle) {
+
+    ProxyBusObject* stream = CreateStream();
+    EXPECT_EQ(ER_OK, OpenStream(stream));
+
+    ProxyBusObject* port = GetPort(stream);
+    ASSERT_TRUE(port);
+
+    Capability capability;
+    SetRawCapability(capability, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE);
+    EXPECT_EQ(ER_OK, ConfigurePort(port, &capability));
+    uint32_t fifoSize;
+    EXPECT_EQ(ER_OK, GetFifoSize(port, fifoSize));
+    RegisterSignalHandler(port->GetPath().c_str());
+
+    uint8_t playState;
+    EXPECT_EQ(ER_OK, GetPlayState(playState));
+    EXPECT_EQ(IDLE, playState);
+
+    QStatus status = CloseStream(stream);
+    EXPECT_EQ(status, ER_OK);
+
+    delete stream;
+}
+
+TEST_F(StreamTest, DropWhenPlaying) {
+
+    TestFixture* A = new TestFixture();
+    ProxyBusObject* streamA = A->CreateStream();
+    QStatus status = A->OpenStream(streamA);
+    EXPECT_EQ(status, ER_OK);
+    ProxyBusObject* portA = GetPort(streamA);
+    ASSERT_TRUE(portA);
+
+    Capability capability;
+    A->SetRawCapability(capability, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE);
+    EXPECT_EQ(ER_OK, A->ConfigurePort(portA, &capability));
+    uint32_t fifoSize;
+    EXPECT_EQ(ER_OK, A->GetFifoSize(portA, fifoSize));
+    A->RegisterSignalHandler(portA->GetPath().c_str());
+
+    uint8_t playState;
+    EXPECT_EQ(A->SendSilentAudio(fifoSize, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE), ER_OK);
+    EXPECT_EQ(A->WaitForPlayStateChanged(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(ER_OK, A->GetPlayState(playState));
+    EXPECT_EQ(PLAYING, playState);
+
+    TestFixture* B = new TestFixture();
+    ProxyBusObject* streamB = B->CreateStream();
+    status = B->OpenStream(streamB);
+    EXPECT_EQ(status, ER_OK);
+
+    String newOwner;
+    EXPECT_EQ(A->WaitForOwnershipLost(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(A->GetNewOwner(newOwner), ER_OK);
+    EXPECT_STREQ(newOwner.c_str(), B->GetUniqueName().c_str());
+
+    delete streamB;
+    delete B;
+    delete streamA;
+    delete A;
+}
+
+TEST_F(StreamTest, DrainWhenPlaying) {
+
+    ProxyBusObject* stream = CreateStream();
+    EXPECT_EQ(ER_OK, OpenStream(stream));
+
+    ProxyBusObject* port = GetPort(stream);
+    ASSERT_TRUE(port);
+
+    Capability capability;
+    SetRawCapability(capability, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE);
+    EXPECT_EQ(ER_OK, ConfigurePort(port, &capability));
+    uint32_t fifoSize;
+    EXPECT_EQ(ER_OK, GetFifoSize(port, fifoSize));
+    RegisterSignalHandler(port->GetPath().c_str());
+
+    uint8_t playState;
+    EXPECT_EQ(SendSilentAudio(fifoSize, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE), ER_OK);
+    EXPECT_EQ(WaitForPlayStateChanged(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(ER_OK, GetPlayState(playState));
+    EXPECT_EQ(PLAYING, playState);
+
+    QStatus status = CloseStream(stream);
+    EXPECT_EQ(status, ER_OK);
+
+    delete stream;
+}
+
+TEST_F(StreamTest, DropWhenPaused) {
+
+    TestFixture* A = new TestFixture();
+    ProxyBusObject* streamA = A->CreateStream();
+    QStatus status = A->OpenStream(streamA);
+    EXPECT_EQ(status, ER_OK);
+    ProxyBusObject* portA = GetPort(streamA);
+    ASSERT_TRUE(portA);
+
+    Capability capability;
+    A->SetRawCapability(capability, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE);
+    EXPECT_EQ(ER_OK, A->ConfigurePort(portA, &capability));
+    uint32_t fifoSize;
+    EXPECT_EQ(ER_OK, A->GetFifoSize(portA, fifoSize));
+    A->RegisterSignalHandler(portA->GetPath().c_str());
+
+    uint8_t playState;
+    EXPECT_EQ(A->SendSilentAudio(fifoSize, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE), ER_OK);
+    EXPECT_EQ(A->WaitForPlayStateChanged(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(ER_OK, A->GetPlayState(playState));
+    EXPECT_EQ(PLAYING, playState);
+
+    EXPECT_EQ(A->Pause(portA), ER_OK);
+    EXPECT_EQ(A->WaitForPlayStateChanged(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(ER_OK, A->GetPlayState(playState));
+    EXPECT_EQ(PAUSED, playState);
+
+    TestFixture* B = new TestFixture();
+    ProxyBusObject* streamB = B->CreateStream();
+    status = B->OpenStream(streamB);
+    EXPECT_EQ(status, ER_OK);
+
+    String newOwner;
+    EXPECT_EQ(A->WaitForOwnershipLost(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(A->GetNewOwner(newOwner), ER_OK);
+    EXPECT_STREQ(newOwner.c_str(), B->GetUniqueName().c_str());
+
+    delete streamB;
+    delete B;
+    delete streamA;
+    delete A;
+}
+
+TEST_F(StreamTest, DrainWhenPaused) {
+
+    ProxyBusObject* stream = CreateStream();
+    EXPECT_EQ(ER_OK, OpenStream(stream));
+
+    ProxyBusObject* port = GetPort(stream);
+    ASSERT_TRUE(port);
+
+    Capability capability;
+    SetRawCapability(capability, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE);
+    EXPECT_EQ(ER_OK, ConfigurePort(port, &capability));
+    uint32_t fifoSize;
+    EXPECT_EQ(ER_OK, GetFifoSize(port, fifoSize));
+    RegisterSignalHandler(port->GetPath().c_str());
+
+    uint8_t playState;
+    EXPECT_EQ(SendSilentAudio(fifoSize, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE), ER_OK);
+    EXPECT_EQ(WaitForPlayStateChanged(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(ER_OK, GetPlayState(playState));
+    EXPECT_EQ(PLAYING, playState);
+
+    EXPECT_EQ(Pause(port), ER_OK);
+    EXPECT_EQ(WaitForPlayStateChanged(AudioTest::sTimeout), ER_OK);
+    EXPECT_EQ(ER_OK, GetPlayState(playState));
+    EXPECT_EQ(PAUSED, playState);
+
+    QStatus status = CloseStream(stream);
+    EXPECT_EQ(status, ER_OK);
+
+    delete stream;
+}

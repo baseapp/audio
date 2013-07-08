@@ -102,10 +102,18 @@ AudioSinkObject::~AudioSinkObject() {
     bus->UnregisterAllHandlers(this);
 }
 
-void AudioSinkObject::Cleanup() {
+void AudioSinkObject::Cleanup(bool drain) {
+    QCC_DbgTrace(("%s(drain=%d)", __FUNCTION__, drain));
+
+    bool drainAudioDevice = drain && (mPlayState == PlayState::PLAYING);
+    if (drain) {
+        while (mPlayState == PlayState::PLAYING)
+            SleepNanos(10000000);
+    }
+
     StopAudioOutputThread();
     StopDecodeThread();
-    mAudioDevice->Close();
+    mAudioDevice->Close(drainAudioDevice);
 
     if (mAudioOutputEvent != NULL) {
         delete mAudioOutputEvent;
@@ -120,7 +128,7 @@ void AudioSinkObject::Cleanup() {
     ClearBuffer();
     SetPlayState(PlayState::IDLE);
 
-    PortObject::Cleanup();
+    PortObject::Cleanup(drain);
 }
 
 QStatus AudioSinkObject::Get(const char* ifcName, const char* propName, MsgArg& val) {
@@ -789,7 +797,7 @@ size_t AudioSinkObject::GetCombinedBufferSize() {
 }
 
 size_t AudioSinkObject::GetDecodeBufferSize() {
-    return mDecodeBuffers.size() * (mDecoder->GetFrameSize() * mBytesPerFrame);
+    return mDecodeBuffers.size() * (mDecoder ? mDecoder->GetFrameSize() * mBytesPerFrame : 0);
 }
 
 size_t AudioSinkObject::GetBufferSize() {

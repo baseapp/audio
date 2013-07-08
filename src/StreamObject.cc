@@ -245,7 +245,7 @@ void StreamObject::Close(const InterfaceDescription::Member* member, Message& ms
     mPortsMutex.Lock();
     for (std::vector<PortObject*>::iterator it = mPorts.begin(); it != mPorts.end(); ++it) {
         PortObject* p = *it;
-        p->Cleanup();
+        p->Cleanup(true);
     }
     mPortsMutex.Unlock();
 

@@ -201,7 +201,9 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
     return true;
 }
 
-void ALSADevice::Close() {
+void ALSADevice::Close(bool drain) {
+    QCC_DbgTrace(("%s(drain=%d)", __FUNCTION__, drain));
+
     if (mAudioDeviceHandle != NULL) {
         if (mAudioMixerHandle != NULL) {
             StopAudioMixerThread();
@@ -210,6 +212,8 @@ void ALSADevice::Close() {
             mAudioMixerElementPCM = NULL;
             mAudioMixerHandle = NULL;
         }
+        if (drain)
+            snd_pcm_drain(mAudioDeviceHandle);
         snd_pcm_close(mAudioDeviceHandle);
         mAudioDeviceHandle = NULL;
     }
@@ -219,7 +223,7 @@ bool ALSADevice::Pause() {
     bool hasPaused = false;
 
     if (mHardwareCanPause) {
-        int err = snd_pcm_pause(mAudioDeviceHandle, 0);
+        int err = snd_pcm_pause(mAudioDeviceHandle, 1);
         hasPaused = err == 0;
         if (!hasPaused)
             QCC_LogError(ER_OS_ERROR, ("pause failed (%s)", snd_strerror(err)));
@@ -239,7 +243,14 @@ bool ALSADevice::Pause() {
 }
 
 bool ALSADevice::Play() {
-    // No need to do anything here, ALSA will start playing on write
+    // If not paused then no need to do anything, ALSA will start playing on write
+    if (snd_pcm_state(mAudioDeviceHandle) == SND_PCM_STATE_PAUSED) {
+        int err = snd_pcm_pause(mAudioDeviceHandle, 0);
+        if (err < 0) {
+            QCC_LogError(ER_OS_ERROR, ("resume failed (%s)", snd_strerror(err)));
+            return false;
+        }
+    }
     return true;
 }
 

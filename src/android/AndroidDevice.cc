@@ -161,7 +161,7 @@ bool AndroidDevice::Open(const char*format, uint32_t sampleRate, uint32_t numCha
     return true;
 }
 
-void AndroidDevice::Close()
+void AndroidDevice::Close(bool drain)
 {
     if (mBufferQueue) {
         (*mBufferQueue)->Clear(mBufferQueue);

@@ -78,9 +78,13 @@ class AudioDevice {
     /**
      * Closes the audio device.
      *
+     * @param[in] drain true to render any buffered data before
+     *                  returning.  false to drop any buffered data
+     *                  and return immediately.
+     *
      * @see Open()
      */
-    virtual void Close() = 0;
+    virtual void Close(bool drain = false) = 0;
 
     /**
      * Pauses the audio device playback.
