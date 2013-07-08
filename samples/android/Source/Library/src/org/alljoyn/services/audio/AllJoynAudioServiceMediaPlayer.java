@@ -27,6 +27,15 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+/**
+ * A MediaPlayer that enables the ability to send audio over the AllJoyn Audio service.
+ * This class extends the MediaPlayer to add the ability to communicate with AllJoyn
+ * Audio service Sinks.  It is both a re-usable library and an example application.
+ * The jni wrapper code is an implementation of using the AllJoyn Audio service APIs,
+ * see the AllJoyn Audio Service Usage Guide for more details.
+ * The "Getting Started with the AllJoyn Audio Service using Java" details how you can
+ * setup your environment in Android to use this library.
+ */	
 public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
 	private static final String TAG = "AllJoynAudioServiceMediaPlayer";
 	
@@ -58,42 +67,42 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
 		System.loadLibrary("easy_alljoyn_audio_service");
 	}
 
-	/**  */
+	/** Native jni call to startup and initialize the AllJoyn Audio service */
 	private native void Prepare(String packageName);
 
-	/**  */
+	/** Native jni call to set the source file to be used */
 	private native void SetDataSource(String dataSource);
 	
-	/**  */
-	private native void SendAudioPacket(byte[] audioData);
-	
-	/**  */
+	/** Native jni call to add a Sink to receive audio */
 	private native void AddSink(String name, String path, short port);
 	
-	/**  */
+	/** Native jni call to remove a Sink from receiving audio */
 	private native void RemoveSink(String name);
 	
-	/**  */
+	/** Native jni call to start sending audio.  Must call SetDataSource and AddSink prior to this method. */
 	private native void Start();
 	
-	/**  */
+	/** Native jni call to pause sending audio. */
 	private native void Pause();
 	
-	/**  */
+	/** Native jni call to stop sending audio and reset variables. */
 	private native void Stop();
 	
-	/**  */
+	/** Native jni call to change volume on all added Sinks. */
 	private native void ChangeVolume(float volume);
 	
-	/**  */
+	/** Native jni call to mute the volume all added Sinks. */
 	private native void Mute();
 
-	/**  */
+	/** Native jni call to release and shutdown. */
 	private native void Release();
 	
-	/** */
+	/** Native jni call to trigger a refresh of Sink information. */
 	private native void RefreshSinks();
     
+	/**
+	 * Constructor to create an AllJoynAudioServie Media Player
+	 */
     public AllJoynAudioServiceMediaPlayer() {
     	/* Make all AllJoyn calls through a separate handler thread to prevent blocking the UI. */
         HandlerThread busThread = new HandlerThread("BusHandler");
@@ -104,10 +113,22 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
         numEnabledSinks = 0;
     }
     
+    /**
+     * Set the listener to receive callback information from the Audio Service.
+     * 
+     * @param listener	The AllJoyn Audio Service Listener that will be triggered when events occur in the AllJoyn Audio service.
+     */
     public void setAllJoynAudioServiceListener(AllJoynAudioServiceListener listener) {
     	mListener = listener;
     }
-        
+     
+    
+    /**
+     * Just like the Android MediaPlayer this sets the source file that will be used to play audio.
+     * 
+     * @param path	Path to the audio file to be used.  For AllJoyn audio we currently support .wav files.
+     */
+    @Override
     public void setDataSource(String path) throws IllegalStateException, IOException, IllegalArgumentException, SecurityException {
     	//Should stream over alljoyn
     	//Check if the path is for a wav file, if so pass it on down and let it stream as is
@@ -128,6 +149,14 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	}
     }
     
+    /**
+     * Add a Sink that will receive audio for playback.
+     * Values are provided by the AllJoyn Audio Service Listener callbacks.
+     * 
+     * @param speakerName	The name value returned from a AllJoyn Audio Service Listener SinkFound callback.
+     * @param speakerPath	The path value returned from a AllJoyn Audio Service Listener SinkFound callback.
+     * @param speakerPort	The port value returned from a AllJoyn Audio Service Listener SinkFound callback.
+     */
     public void addAllJoynSink(String speakerName, String speakerPath, short speakerPort) {
     	if(mDataSourcePath == null || mDataSourcePath.length() == 0) {
     		throw new IllegalStateException("Call setDataSource prior to calling add");
@@ -143,6 +172,11 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	mBusHandler.sendMessage(msg);
     }
     
+    /**
+     * Remove a Sink from playing audio.
+     * 
+     * @param speakerName	The same name used when adding a Sink.
+     */
     public void removeAllJoynSink(String speakerName) {
     	numEnabledSinks--;
     	if(numEnabledSinks == 0)
@@ -154,10 +188,18 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	mBusHandler.sendMessage(msg);
     }
     
+    /**
+     * Informs the AllJoyn Audio service to refresh its list of Sinks.
+     * This will cause the AllJoyn Audio Service Listener SinkFound callback to trigger again.
+     */
     public void refreshSinks() {
     	mBusHandler.sendEmptyMessage(REFRESH_SINKS);
     }
     
+    /**
+     * Extension of the MediaPlayer start.  Will cause audio to start sending if a Sink has been added.
+     * If no Sink added, functions the same as the Android MediaPlayer.
+     */
     @Override
     public void start() {
     	if(!mStreamOverAllJoyn) {
@@ -170,6 +212,10 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     		super.stop();
     }
     
+    /**
+     * Extension of the MediaPlayer pause.  Will cause audio to pause if a Sink has been added.
+     * If no Sink added, functions the same as the Android MediaPlayer.
+     */
     @Override
     public void pause() {
     	if(!mStreamOverAllJoyn) {
@@ -180,6 +226,10 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	mBusHandler.sendEmptyMessage(PAUSE_STREAMING);
     }
     
+    /**
+     * Extension of the MediaPlayer stop.  Will cause audio to stop sending if a Sink has been added.
+     * If no Sink added, functions the same as the Android MediaPlayer.
+     */
     @Override
     public void stop() {
     	if(!mStreamOverAllJoyn) {
@@ -190,6 +240,10 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	mBusHandler.sendEmptyMessage(STOP_STREAMING);
     }
     
+    /**
+     * Extension of the MediaPlayer reset.  Will cause audio to stop sending if a Sink has been added and resets states.
+     * If no Sink added, functions the same as the Android MediaPlayer.
+     */
     @Override
     public void reset() {
     	super.reset();
@@ -197,6 +251,11 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	mBusHandler.sendEmptyMessage(STOP_STREAMING);
     }
     
+    /**
+     * Extension of the MediaPlayer isPlaying.
+     * 
+     * @return Android MediaPlayer.isPlaying() if not streaming audio else if audio is in a Play state on Sinks.
+     */
     @Override
     public boolean isPlaying() {
     	if(!mStreamOverAllJoyn)
@@ -204,6 +263,16 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	return isPlayingOverStream;
     }
     
+    /**
+     * Extension of the MediaPlayer setVolume.  Will change volume on all Sinks if any have been added.
+     * If no Sink added, functions the same as the Android MediaPlayer.
+     * 
+     * Note: If a Sink is added only the leftVolume is used to control volume levels on Sinks.
+     * 		Setting leftVolume to 0 will mute all added Sinks.
+     * 
+     * @param leftVolume Volume to set the left channel.
+     * @param rightVolume Volume to set the right channel.
+     */
     @Override
     public void setVolume(float leftVolume, float rightVolume) {
     	if(!mStreamOverAllJoyn) {
@@ -217,12 +286,19 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	mBusHandler.sendMessage(msg);
     }
     
+    /**
+     * Extension of the MediaPlayer release call.  Cleans up the MediaPlayer and the AllJoyn Audio Service
+     */
+    @Override
     public void release() {
     	super.release();
     	mBusHandler.sendEmptyMessage(RELEASE);
     }
     
     
+    /**
+     * Private class to avoid locking up the UI thread when making calles into the AllJoyn Audio Service.
+     */
     private class BusHandler extends Handler {
     	public BusHandler(Looper looper) {
     		super(looper);
@@ -274,26 +350,41 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	}
     }
     
+    /**
+     * Private method that is invoked when the jni C++ SinkSearcher class callback for SinkFound occurs.
+     */
 	private void SinkFound( String name, String path, String friendlyName, short port ) {
 		if(mListener != null)
 			mListener.SinkFound(name, path, friendlyName, port);
 	}
 
+	/**
+     * Private method that is invoked when the jni C++ SinkSearcher class callback for SinkLost occurs.
+     */
 	private void SinkLost( String name ) {
 		if(mListener != null)
 			mListener.SinkLost(name);
 	}
 
+	/**
+     * Private method that is invoked when the jni C++ SinkListener class callback for SinkAdded occurs.
+     */
 	private void SinkAdded( String name ) {
 		if(mListener != null)
 			mListener.SinkReady(name);
 	}
 
+	/**
+     * Private method that is invoked when the jni C++ SinkListener class callback for SinkAddFailed occurs.
+     */
 	private void SinkAddFailed( String name ) {
 		if(mListener != null)
 			mListener.SinkError(name);
 	}
 
+	/**
+     * Private method that is invoked when the jni C++ SinkListener class callback for SinkRemoved occurs.
+     */
 	private void SinkRemoved( String name, boolean lost ) {
 		if(mListener != null)
 			mListener.SinkRemoved(name, lost);
