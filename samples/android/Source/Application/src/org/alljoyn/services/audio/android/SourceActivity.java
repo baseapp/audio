@@ -18,12 +18,11 @@ package org.alljoyn.services.audio.android;
 
 import android.os.Bundle;
 import android.content.pm.ActivityInfo;
-import android.support.v4.app.FragmentActivity;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 
-public class SourceActivity extends FragmentActivity implements SinkSelectDialog.SinkSelectDialogListener {
+public class SourceActivity extends Activity implements SinkSelectDialog.SinkSelectDialogListener {
     private UIHelper mUIHelper;
     
     @Override
