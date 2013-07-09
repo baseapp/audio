@@ -39,7 +39,8 @@ using namespace std;
 namespace ajn {
 namespace services {
 
-ALSADevice::ALSADevice() :
+ALSADevice::ALSADevice(const char* deviceName, const char* mixerName) :
+    mAudioDeviceName(deviceName), mAudioMixerName(mixerName),
     mMute(false), mVolume(INT16_MAX),
     mAudioDeviceHandle(NULL), mAudioMixerHandle(NULL),
     mAudioMixerElementMaster(NULL), mAudioMixerElementPCM(NULL), mAudioMixerThread(NULL) {
@@ -64,8 +65,8 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
         return false;
     }
 
-    if ((err = snd_pcm_open(&mAudioDeviceHandle, "plughw:0,0", SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
-        QCC_LogError(ER_OS_ERROR, ("cannot open audio device (%s)", snd_strerror(err)));
+    if ((err = snd_pcm_open(&mAudioDeviceHandle, mAudioDeviceName, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+        QCC_LogError(ER_OS_ERROR, ("cannot open audio device \"%s\" (%s)", mAudioDeviceName, snd_strerror(err)));
         return false;
     }
 
@@ -144,8 +145,8 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
     if ((err = snd_mixer_open(&mAudioMixerHandle, 0)) < 0)
         QCC_LogError(ER_OS_ERROR, ("mixer open failed: %s", snd_strerror(err)));
 
-    if (mAudioMixerHandle != NULL && (err = snd_mixer_attach(mAudioMixerHandle, "hw:0")) < 0) {
-        QCC_LogError(ER_OS_ERROR, ("mixer attach failed: %s", snd_strerror(err)));
+    if (mAudioMixerHandle != NULL && (err = snd_mixer_attach(mAudioMixerHandle, mAudioMixerName)) < 0) {
+        QCC_LogError(ER_OS_ERROR, ("mixer attach \"%s\" failed: %s", mAudioMixerName, snd_strerror(err)));
         MIXER_CLEANUP();
     }
 
@@ -220,6 +221,9 @@ void ALSADevice::Close(bool drain) {
 }
 
 bool ALSADevice::Pause() {
+    if (!mAudioDeviceHandle)
+        return false;
+
     bool hasPaused = false;
 
     if (mHardwareCanPause) {
@@ -243,6 +247,9 @@ bool ALSADevice::Pause() {
 }
 
 bool ALSADevice::Play() {
+    if (!mAudioDeviceHandle)
+        return false;
+
     // If not paused then no need to do anything, ALSA will start playing on write
     if (snd_pcm_state(mAudioDeviceHandle) == SND_PCM_STATE_PAUSED) {
         int err = snd_pcm_pause(mAudioDeviceHandle, 0);
@@ -255,6 +262,9 @@ bool ALSADevice::Play() {
 }
 
 bool ALSADevice::Recover() {
+    if (!mAudioDeviceHandle)
+        return false;
+
     if (snd_pcm_state(mAudioDeviceHandle) == SND_PCM_STATE_XRUN) {
         int err = snd_pcm_drop(mAudioDeviceHandle);
         if (err < 0)
@@ -271,6 +281,9 @@ bool ALSADevice::Recover() {
 }
 
 uint32_t ALSADevice::GetDelay() {
+    if (!mAudioDeviceHandle)
+        return 0;
+
     snd_pcm_sframes_t delayInFrames = 0;
     if (snd_pcm_delay(mAudioDeviceHandle, &delayInFrames) == 0)
         return delayInFrames > 0 ? (uint32_t)delayInFrames : 0;
@@ -278,11 +291,17 @@ uint32_t ALSADevice::GetDelay() {
 }
 
 uint32_t ALSADevice::GetFramesWanted() {
+    if (!mAudioDeviceHandle)
+        return 0;
+
     snd_pcm_sframes_t framesWanted = snd_pcm_avail_update(mAudioDeviceHandle);
     return framesWanted > 0 ? (uint32_t)framesWanted : 0;
 }
 
 bool ALSADevice::Write(const uint8_t* buffer, uint32_t bufferSizeInFrames) {
+    if (!mAudioDeviceHandle)
+        return false;
+
     snd_pcm_sframes_t err = snd_pcm_writei(mAudioDeviceHandle, buffer, bufferSizeInFrames);
     if (err < 0)
         err = snd_pcm_recover(mAudioDeviceHandle, err, 0);

@@ -174,19 +174,19 @@ void AndroidDevice::Close(bool drain)
         mPlay = NULL;
     }
 
-    if (mBufferQueuePlayerObject != NULL) {
+    if (mBufferQueuePlayerObject) {
         (*mBufferQueuePlayerObject)->Destroy(mBufferQueuePlayerObject);
         mBufferQueuePlayerObject = NULL;
         mBufferQueue = NULL;
         mVolume = NULL;
     }
 
-    if (mOutputMixObject != NULL) {
+    if (mOutputMixObject) {
         (*mOutputMixObject)->Destroy(mOutputMixObject);
         mOutputMixObject = NULL;
     }
 
-    if (mSLEngineObject != NULL) {
+    if (mSLEngineObject) {
         (*mSLEngineObject)->Destroy(mSLEngineObject);
         mSLEngineObject = NULL;
         mSLEngine = NULL;
@@ -205,19 +205,19 @@ AndroidDevice::~AndroidDevice()
         mPlay = NULL;
     }
 
-    if (mBufferQueuePlayerObject != NULL) {
+    if (mBufferQueuePlayerObject) {
         (*mBufferQueuePlayerObject)->Destroy(mBufferQueuePlayerObject);
         mBufferQueuePlayerObject = NULL;
         mBufferQueue = NULL;
         mVolume = NULL;
     }
 
-    if (mOutputMixObject != NULL) {
+    if (mOutputMixObject) {
         (*mOutputMixObject)->Destroy(mOutputMixObject);
         mOutputMixObject = NULL;
     }
 
-    if (mSLEngineObject != NULL) {
+    if (mSLEngineObject) {
         (*mSLEngineObject)->Destroy(mSLEngineObject);
         mSLEngineObject = NULL;
         mSLEngine = NULL;
@@ -235,6 +235,9 @@ AndroidDevice::~AndroidDevice()
 
 bool AndroidDevice::Pause()
 {
+    if (!mPlay)
+        return false;
+
     // set the player's state to playing
     SLresult result = (*mPlay)->SetPlayState(mPlay, SL_PLAYSTATE_PAUSED);
     if (SL_RESULT_SUCCESS != result) {
@@ -245,6 +248,9 @@ bool AndroidDevice::Pause()
 
 bool AndroidDevice::Play()
 {
+    if (!mPlay)
+        return false;
+
     // set the player's state to playing
     SLresult result = (*mPlay)->SetPlayState(mPlay, SL_PLAYSTATE_PLAYING);
     if (SL_RESULT_SUCCESS != result) {
@@ -270,6 +276,9 @@ uint32_t AndroidDevice::GetFramesWanted()
 
 bool AndroidDevice::Write(const uint8_t*buffer, uint32_t bufferSizeInFrames)
 {
+    if (!mBufferQueue)
+        return false;
+
     while (mBuffersAvailable == 0) {
         //block and wait for a buffer to free up
         SleepNanos(1000000);         // 1/1000th of a second
@@ -294,6 +303,7 @@ bool AndroidDevice::GetMute(bool& mute)
 {
     if (!mVolume)
         return false;
+
     SLboolean value;
     SLresult result = (*mVolume)->GetMute(mVolume, &value);
     mMute = value == SL_BOOLEAN_TRUE;
@@ -305,6 +315,7 @@ bool AndroidDevice::SetMute(bool mute)
 {
     if (!mVolume)
         return false;
+
     SLresult result = (*mVolume)->SetMute(mVolume, mute ? SL_BOOLEAN_TRUE : SL_BOOLEAN_FALSE);
     if (result == SL_RESULT_SUCCESS) {
         mMute = mute;
@@ -321,6 +332,9 @@ bool AndroidDevice::SetMute(bool mute)
 }
 
 bool AndroidDevice::GetVolumeRange(int16_t& low, int16_t& high, int16_t& step) {
+    if (!mVolume)
+        return false;
+
     SLresult result;
     bool ret = false;
     result = (*mVolume)->GetMaxVolumeLevel(mVolume, &high);
@@ -338,6 +352,7 @@ bool AndroidDevice::GetVolume(int16_t& volume)
 {
     if (!mVolume)
         return false;
+
     SLmillibel mCurrentVolume;
     SLresult result = (*mVolume)->GetVolumeLevel(mVolume, &mCurrentVolume);
     if (SL_RESULT_SUCCESS == result) {
@@ -351,6 +366,7 @@ bool AndroidDevice::SetVolume(int16_t newVolume)
 {
     if (!mVolume)
         return false;
+
     SLresult result;
     SLmillibel mNewVolume = newVolume;
     int16_t oldVolume = 0;

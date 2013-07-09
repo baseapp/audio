@@ -117,8 +117,30 @@ static void SigIntHandler(int sig) {
     g_interrupt = true;
 }
 
+static int usage(const char* name) {
+    printf("Usage: %s [-Ddevice] [-Mmixer] [friendlyname]\n", name);
+    return 1;
+}
+
 /* Main entry point */
 int main(int argc, char** argv, char** envArg) {
+    if (argc > 3)
+        return usage(argv[0]);
+    const char* deviceName = "plughw:0,0";
+    const char* mixerName = "hw:0";
+    const char* friendlyName = NULL;
+    for (int i = 1; i < argc; ++i) {
+        if (!strncmp(argv[i], "-h", 2) || !strncmp(argv[i], "--h", 3)) {
+            return usage(argv[0]);
+        } else if (!strncmp(argv[i], "-D", 2)) {
+            deviceName = &argv[i][2];
+        } else if (!strncmp(argv[i], "-M", 2)) {
+            mixerName = &argv[i][2];
+        } else {
+            friendlyName = argv[i];
+        }
+    }
+
     QStatus status = ER_OK;
 
     signal(SIGINT, SigIntHandler);
@@ -172,10 +194,7 @@ int main(int argc, char** argv, char** envArg) {
      *    this service
      */
     String name = msgBus->GetUniqueName();
-    const char* friendlyName = NULL;
-    if (argc == 2) {
-        friendlyName = argv[1];
-    } else {
+    if (!friendlyName) {
         friendlyName = name.c_str();
     }
 
@@ -199,7 +218,7 @@ int main(int argc, char** argv, char** envArg) {
 #if defined(QCC_OS_ANDROID)
         audioDevice = new AndroidDevice();
 #elif defined(QCC_OS_GROUP_POSIX)
-        audioDevice = new ALSADevice();
+        audioDevice = new ALSADevice(deviceName, mixerName);
 #endif
         aboutProps = new AboutStore(friendlyName);
         streamObj = new StreamObject(msgBus, "/Speaker/In", audioDevice, sessionPort, aboutProps);

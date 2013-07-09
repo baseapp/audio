@@ -47,7 +47,7 @@ AudioSinkObject::AudioSinkObject(BusAttachment* bus, const char* path, StreamObj
     PortObject(bus, path, stream),
     mPlayState(PlayState::IDLE), mLateChunkCount(0),
     mDecodeThread(NULL), mDecoder(NULL),
-    mAudioOutputEvent(NULL), mAudioOutputThread(NULL),
+    mAudioOutputEvent(new Event()), mAudioOutputThread(NULL),
     mAudioDevice(audioDevice), mAudioDeviceBufferSize(0) {
     mAudioDevice->AddListener(this);
     mDirection = DIRECTION_SINK;
@@ -99,6 +99,9 @@ AudioSinkObject::AudioSinkObject(BusAttachment* bus, const char* path, StreamObj
 }
 
 AudioSinkObject::~AudioSinkObject() {
+    delete mAudioOutputEvent;
+    mAudioOutputEvent = NULL;
+
     bus->UnregisterAllHandlers(this);
 }
 
@@ -115,10 +118,7 @@ void AudioSinkObject::Cleanup(bool drain) {
     StopDecodeThread();
     mAudioDevice->Close(drainAudioDevice);
 
-    if (mAudioOutputEvent != NULL) {
-        delete mAudioOutputEvent;
-        mAudioOutputEvent = NULL;
-    }
+    mAudioOutputEvent->ResetEvent();
 
     if (mDecoder != NULL) {
         delete mDecoder;
@@ -289,7 +289,6 @@ void AudioSinkObject::DoConnect(const InterfaceDescription::Member* member, Mess
         return;
     }
 
-    mAudioOutputEvent = new Event();
     StartAudioOutputThread();
 
     StartDecodeThread();

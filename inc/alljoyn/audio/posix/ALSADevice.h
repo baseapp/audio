@@ -38,7 +38,13 @@ namespace services {
  */
 class ALSADevice : public AudioDevice {
   public:
-    ALSADevice();
+    /**
+     * Creates an ALSA AudioDevice.
+     *
+     * @param[in] deviceName the name of the ALSA PCM handle.
+     * @param[in] mixerName the name of the ALSA mixer HCTL.
+     */
+    ALSADevice(const char* deviceName, const char* mixerName);
 
     bool Open(const char* format, uint32_t sampleRate, uint32_t numChannels, uint32_t& bufferSize);
     void Close(bool drain = false);
@@ -66,6 +72,8 @@ class ALSADevice : public AudioDevice {
   private:
     typedef std::set<AudioDeviceListener*> Listeners;
 
+    const char* mAudioDeviceName;
+    const char* mAudioMixerName;
     bool mMute;
     int16_t mVolume;
     snd_pcm_t* mAudioDeviceHandle;
