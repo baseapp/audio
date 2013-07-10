@@ -19,6 +19,7 @@
 
 #include <qcc/Debug.h>
 #include <algorithm>
+#include <limits.h>
 
 #define QCC_MODULE "ALLJOYN_AUDIO"
 
@@ -41,7 +42,7 @@ namespace services {
 
 ALSADevice::ALSADevice(const char* deviceName, const char* mixerName) :
     mAudioDeviceName(deviceName), mAudioMixerName(mixerName),
-    mMute(false), mVolume(INT16_MAX),
+    mMute(false), mVolume(LONG_MAX), mVolumeScale(1.0), mVolumeOffset(0),
     mAudioDeviceHandle(NULL), mAudioMixerHandle(NULL),
     mAudioMixerElementMaster(NULL), mAudioMixerElementPCM(NULL), mAudioMixerThread(NULL) {
 }
@@ -192,6 +193,10 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
                 QCC_LogError(ER_OS_ERROR, ("get playback PCM volume range failed: %s", snd_strerror(err)));
                 mAudioMixerElementPCM = NULL;
             }
+        }
+        if ((mMaxVolume - mMinVolume) > (INT16_MAX - INT16_MIN)) {
+            mVolumeScale = (double)(mMaxVolume - mMinVolume) / (INT16_MAX - INT16_MIN);
+            mVolumeOffset = INT16_MIN - mMinVolume;
         }
 
         GetMute(mMute);
@@ -346,26 +351,41 @@ bool ALSADevice::SetMute(bool mute) {
     return true;
 }
 
-bool ALSADevice::GetVolumeRange(int16_t& low, int16_t& high, int16_t& step) {
-    low = mMinVolume;
-    high = mMaxVolume;
-    step = 1;
-    return true;
+int16_t ALSADevice::ALSAToAllJoyn(long volume) {
+    return (1.0 / mVolumeScale) * volume + mVolumeOffset;
 }
 
-bool ALSADevice::GetVolume(int16_t& volume) {
+long ALSADevice::AllJoynToALSA(int16_t volume) {
+    return mVolumeScale * (volume - mVolumeOffset);
+}
+
+bool ALSADevice::GetVolume(long& volume) {
     snd_mixer_elem_t* elem = mAudioMixerElementMaster ? mAudioMixerElementMaster : mAudioMixerElementPCM;
     if (!elem)
         return false;
 
     int err;
-    long value;
-    if ((err = snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &value)) < 0) {
+    if ((err = snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &volume)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("get playback volume failed: %s", snd_strerror(err)));
         return false;
     }
-    volume = value;
     return true;
+}
+
+bool ALSADevice::GetVolumeRange(int16_t& low, int16_t& high, int16_t& step) {
+    low = ALSAToAllJoyn(mMinVolume);
+    high = ALSAToAllJoyn(mMaxVolume);
+    step = 1;
+    return true;
+}
+
+bool ALSADevice::GetVolume(int16_t& volume) {
+    long value;
+    if (GetVolume(value)) {
+        volume = ALSAToAllJoyn(value);
+        return true;
+    }
+    return false;
 }
 
 bool ALSADevice::SetVolume(int16_t volume) {
@@ -373,8 +393,10 @@ bool ALSADevice::SetVolume(int16_t volume) {
     if (!elem)
         return false;
 
+    long value = AllJoynToALSA(volume);
+
     int err;
-    if ((err = snd_mixer_selem_set_playback_volume_all(elem, volume)) < 0) {
+    if ((err = snd_mixer_selem_set_playback_volume_all(elem, value)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("set playback volume failed: %s", snd_strerror(err)));
         return false;
     }
@@ -484,14 +506,16 @@ int ALSADevice::AudioMixerEvent(snd_mixer_elem_t* elem, unsigned int mask) {
             ad->mListenersMutex.Unlock();
         }
 
-        int16_t oldVolume = ad->mVolume;
+        long oldVolume = ad->mVolume;
         ad->GetVolume(ad->mVolume);
         if (oldVolume != ad->mVolume) {
             ad->mListenersMutex.Lock();
             ALSADevice::Listeners::iterator it = ad->mListeners.begin();
             while (it != ad->mListeners.end()) {
                 AudioDeviceListener* listener = *it;
-                listener->VolumeChanged(ad->mVolume);
+                int16_t volume;
+                ad->GetVolume(volume);
+                listener->VolumeChanged(volume);
                 it = ad->mListeners.upper_bound(listener);
             }
             ad->mListenersMutex.Unlock();

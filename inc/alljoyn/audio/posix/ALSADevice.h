@@ -64,6 +64,9 @@ class ALSADevice : public AudioDevice {
     void RemoveListener(AudioDeviceListener* listener);
 
   private:
+    int16_t ALSAToAllJoyn(long volume);
+    long AllJoynToALSA(int16_t volume);
+    bool GetVolume(long& volume);
     void StartAudioMixerThread();
     void StopAudioMixerThread();
     static qcc::ThreadReturn AudioMixerThread(void* arg);
@@ -75,14 +78,16 @@ class ALSADevice : public AudioDevice {
     const char* mAudioDeviceName;
     const char* mAudioMixerName;
     bool mMute;
-    int16_t mVolume;
+    long mVolume;
+    long mMinVolume;
+    long mMaxVolume;
+    double mVolumeScale;
+    long mVolumeOffset;
     snd_pcm_t* mAudioDeviceHandle;
     snd_mixer_t* mAudioMixerHandle;
     snd_mixer_elem_t* mAudioMixerElementMaster;
     snd_mixer_elem_t* mAudioMixerElementPCM;
     bool mHardwareCanPause;
-    long mMinVolume;
-    long mMaxVolume;
     qcc::Thread* mAudioMixerThread;
     qcc::Mutex mListenersMutex;
     Listeners mListeners;

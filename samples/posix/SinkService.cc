@@ -126,8 +126,8 @@ static int usage(const char* name) {
 int main(int argc, char** argv, char** envArg) {
     if (argc > 3)
         return usage(argv[0]);
-    const char* deviceName = "plughw:0,0";
-    const char* mixerName = "hw:0";
+    const char* deviceName = "default";
+    const char* mixerName = "default";
     const char* friendlyName = NULL;
     for (int i = 1; i < argc; ++i) {
         if (!strncmp(argv[i], "-h", 2) || !strncmp(argv[i], "--h", 3)) {
@@ -144,9 +144,6 @@ int main(int argc, char** argv, char** envArg) {
     QStatus status = ER_OK;
 
     signal(SIGINT, SigIntHandler);
-
-    // Needed on Ubuntu so ALSA gives us the real mixer
-    setenv("PULSE_INTERNAL", "0", 1);
 
     srand(time(NULL)); // initialize random number generator
 
@@ -216,6 +213,7 @@ int main(int argc, char** argv, char** envArg) {
 
     if (status == ER_OK) {
 #if defined(QCC_OS_ANDROID)
+        deviceName = deviceName; mixerName = mixerName; /* Fix compiler warning */
         audioDevice = new AndroidDevice();
 #elif defined(QCC_OS_GROUP_POSIX)
         audioDevice = new ALSADevice(deviceName, mixerName);
