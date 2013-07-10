@@ -1075,7 +1075,7 @@ bool SinkPlayer::Pause() {
 }
 
 bool SinkPlayer::GetVolumeRange(const char* name, int16_t& low, int16_t& high, int16_t& step) {
-    bool success = true;
+    bool success = false;
     mSinksMutex.Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
@@ -1086,9 +1086,9 @@ bool SinkPlayer::GetVolumeRange(const char* name, int16_t& low, int16_t& high, i
             status = reply.Get("(nnn)", &low, &high, &step);
         }
         if (status != ER_OK) {
-            success = false;
             QCC_LogError(status, ("Get volume range error"));
         }
+        success = (status == ER_OK);
     }
     mSinksMutex.Unlock();
 
@@ -1096,7 +1096,7 @@ bool SinkPlayer::GetVolumeRange(const char* name, int16_t& low, int16_t& high, i
 }
 
 bool SinkPlayer::GetVolume(const char* name, int16_t& volume) {
-    bool success = true;
+    bool success = false;
     mSinksMutex.Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
@@ -1107,9 +1107,9 @@ bool SinkPlayer::GetVolume(const char* name, int16_t& volume) {
             status = reply.Get("n", &volume);
         }
         if (status != ER_OK) {
-            success = false;
             QCC_LogError(status, ("Get volume error"));
         }
+        success = (status == ER_OK);
     }
     mSinksMutex.Unlock();
 
@@ -1124,10 +1124,9 @@ bool SinkPlayer::SetVolume(const char* name, int16_t volume) {
         SinkInfo* si = &(*it);
         MsgArg arg("n", volume);
         QStatus status = si->portObj->SetProperty(VOLUME_INTERFACE, "Volume", arg);
-        if (status == ER_OK)
-            success = true;
-        else
+        if (status != ER_OK)
             QCC_LogError(status, ("Set volume error"));
+        success = (status == ER_OK);
     }
     mSinksMutex.Unlock();
 
@@ -1135,7 +1134,7 @@ bool SinkPlayer::SetVolume(const char* name, int16_t volume) {
 }
 
 bool SinkPlayer::GetMute(const char* name, bool& mute) {
-    bool success = true;
+    bool success = false;
     mSinksMutex.Lock();
     if (name) {
         std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
@@ -1147,11 +1146,12 @@ bool SinkPlayer::GetMute(const char* name, bool& mute) {
                 status = reply.Get("b", &mute);
             }
             if (status != ER_OK) {
-                success = false;
                 QCC_LogError(status, ("Get mute error"));
             }
+            success = (status == ER_OK);
         }
-    } else {
+    } else if (!mSinks.empty()) {
+        success = true;
         mute = true;
         for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
             SinkInfo* si = &(*it);
@@ -1175,7 +1175,7 @@ bool SinkPlayer::GetMute(const char* name, bool& mute) {
 }
 
 bool SinkPlayer::SetMute(const char* name, bool mute) {
-    bool success = true;
+    bool success = false;
     mSinksMutex.Lock();
     if (name) {
         std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
@@ -1184,13 +1184,12 @@ bool SinkPlayer::SetMute(const char* name, bool mute) {
             MsgArg arg("b", mute);
             QStatus status = si->portObj->SetProperty(VOLUME_INTERFACE, "Mute", arg);
             if (status != ER_OK) {
-                success = false;
                 QCC_LogError(status, ("Set mute error"));
             }
-        } else {
-            success = false;
+            success = (status == ER_OK);
         }
-    } else {
+    } else if (!mSinks.empty()) {
+        success = true;
         for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
             SinkInfo* si = &(*it);
             MsgArg arg("b", mute);
