@@ -26,6 +26,11 @@
 
 #define QCC_MODULE "ALLJOYN_AUDIO"
 
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #define DATA_IDENTIFIER 0x64617461 // 'data'
 #define RIFF_IDENTIFIER 0x52494646 // 'RIFF'
 #define WAVE_IDENTIFIER 0x57415645 // 'WAVE'
@@ -50,8 +55,7 @@ bool WavDataSource::Open(FILE* inputFile) {
     mInputFile = inputFile;
     if (!ReadHeader()) {
         QCC_LogError(ER_FAIL, ("file is not a PCM wave file"));
-        fclose(mInputFile);
-        mInputFile = NULL;
+        Close();
         return false;
     }
 
@@ -65,8 +69,7 @@ bool WavDataSource::Open(FILE* inputFile) {
                          "mBitsPerChannel=%d",
                          mSampleRate, mChannelsPerFrame,
                          mBytesPerFrame, mBitsPerChannel));
-        fclose(mInputFile);
-        mInputFile = NULL;
+        Close();
         return false;
     }
     return true;
@@ -142,6 +145,7 @@ size_t WavDataSource::ReadData(uint8_t* buffer, size_t offset, size_t length) {
     size_t r = 0;
     if (mInputFile) {
         fseek(mInputFile, mInputDataStart + offset, SEEK_SET);
+        length = MIN(mInputSize - offset, length);
         r = fread(buffer, 1, length, mInputFile);
     }
     mInputFileMutex.Unlock();
