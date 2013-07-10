@@ -2,6 +2,7 @@ LOCAL_PATH := $(call my-dir)
 
 # AllJoyn specifics
 ALLJOYN_DIST := ../../../../../build/android/arm/$(APP_OPTIM)/dist
+ALLJOYN_COMMON := ../../../../../../common
 AUDIO_SERVICE_PATH := ../../../../..
 ABOUT_SERVICE_PATH := ../../../../../../about
 
@@ -13,6 +14,8 @@ TARGET_PLATFORM := android-8
 
 LOCAL_C_INCLUDES := \
 	$(ALLJOYN_DIST)/cpp/inc \
+	$(ALLJOYN_DIST)/cpp/inc/alljoyn \
+	$(ALLJOYN_COMMON)/inc \
 	$(LOCAL_PATH)/$(AUDIO_SERVICE_PATH)/inc \
 	$(LOCAL_PATH)/$(ABOUT_SERVICE_PATH)/cpp/inc \
 	$(NDK_PLATFORMS_ROOT)/$(TARGET_PLATFORM)/arch-arm/usr/include \

@@ -17,6 +17,7 @@
 package org.alljoyn.services.audio.android;
 
 import android.os.Bundle;
+import android.app.Activity;
 import android.content.pm.ActivityInfo;
 import android.view.KeyEvent;
 import android.view.Menu;
