@@ -844,7 +844,7 @@ size_t SinkPlayer::GetSinkCount() {
     mSinksMutex.Lock();
     int count = mSinks.size();
     mSinksMutex.Unlock();
-    return count > 0;
+    return count;
 }
 
 ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
