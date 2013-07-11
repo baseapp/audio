@@ -346,24 +346,26 @@ TEST_F(VolumeControlTest, MuteUnmute) {
 TEST_F(VolumeControlTest, SetValidVolume) {
 
     ProxyBusObject* stream = CreateStream();
-    EXPECT_EQ(OpenStream(stream), ER_OK);
+    EXPECT_EQ(ER_OK, OpenStream(stream));
     ProxyBusObject* port = GetRawPort(stream);
     ASSERT_TRUE(port);
     int16_t low, high;
-    EXPECT_EQ(GetVolumeRange(port, low, high), ER_OK);
+    EXPECT_EQ(ER_OK, GetVolumeRange(port, low, high));
     int16_t currentVol;
-    EXPECT_EQ(GetVolume(port, currentVol), ER_OK);
+    EXPECT_EQ(ER_OK, GetVolume(port, currentVol));
 
-    int16_t newVol1 = currentVol < high ? currentVol + 1 : low;
-    int16_t newVol2 = currentVol > low ? currentVol - 1 : high;
-    EXPECT_EQ(SetVolume(port, newVol1), ER_OK);
-    EXPECT_EQ(WaitForVolumeChanged(AudioTest::sTimeout), ER_OK);
-    EXPECT_EQ(GetVolumeChange(), newVol1);
-
-    EXPECT_EQ(SetVolume(port, newVol2), ER_OK);
-    EXPECT_EQ(WaitForVolumeChanged(AudioTest::sTimeout), ER_OK);
-    EXPECT_EQ(GetVolumeChange(), newVol2);
-
+    if (currentVol < high) {
+        int16_t newVol1 = currentVol + 1;
+        EXPECT_EQ(ER_OK, SetVolume(port, newVol1));
+        EXPECT_EQ(ER_OK, WaitForVolumeChanged(AudioTest::sTimeout));
+        EXPECT_NEAR(newVol1, GetVolumeChange(), 2);
+    }
+    if (currentVol > low) {
+        int16_t newVol2 = currentVol - 1;
+        EXPECT_EQ(ER_OK, SetVolume(port, newVol2));
+        EXPECT_EQ(ER_OK, WaitForVolumeChanged(AudioTest::sTimeout));
+        EXPECT_NEAR(newVol2, GetVolumeChange(), 2);
+    }
     delete stream;
 }
 
@@ -376,8 +378,11 @@ TEST_F(VolumeControlTest, SetInvalidVolume) {
     int16_t low, high;
     EXPECT_EQ(GetVolumeRange(port, low, high), ER_OK);
 
-    int16_t requestedVolume = high + 10;
-    EXPECT_NE(ER_OK, SetVolume(port, requestedVolume));
+    if (high != INT16_MAX) {
+        EXPECT_NE(ER_OK, SetVolume(port, INT16_MAX));
+    } else if (low != INT16_MIN) {
+        EXPECT_NE(ER_OK, SetVolume(port, INT16_MIN));
+    }
 
     delete stream;
 }
@@ -437,17 +442,17 @@ TEST_F(VolumeControlTest, AdjustVolume) {
     int16_t low, high;
     EXPECT_EQ(GetVolumeRange(port, low, high), ER_OK);
 
-    int16_t volume = (high - low) / 2;
-    int16_t delta = 1;
+    int16_t volume;
+    int16_t delta = 2;
 
     EXPECT_EQ(ER_OK, GetVolume(port, volume));
     EXPECT_EQ(ER_OK, AdjustVolume(port, delta));
     EXPECT_EQ(ER_OK, WaitForVolumeChanged(AudioTest::sTimeout));
-    EXPECT_EQ(volume + delta, GetVolumeChange());
+    EXPECT_NEAR(volume + delta, GetVolumeChange(), 2 * delta);
 
     EXPECT_EQ(ER_OK, AdjustVolume(port, delta * -1));
     EXPECT_EQ(ER_OK, WaitForVolumeChanged(AudioTest::sTimeout));
-    EXPECT_EQ(volume, GetVolumeChange());
+    EXPECT_NEAR(volume, GetVolumeChange(), 2 * delta);
 
     delete stream;
 }
@@ -461,9 +466,10 @@ TEST_F(VolumeControlTest, AdjustInvalidVolume) {
     int16_t low, high;
     EXPECT_EQ(GetVolumeRange(port, low, high), ER_OK);
 
-    int16_t delta = high - low + 1;
-    EXPECT_NE(ER_OK, AdjustVolume(port, delta));
-    EXPECT_NE(ER_OK, AdjustVolume(port, delta * -1));
-
+    if (low != INT16_MIN && high != INT16_MAX) {
+        int16_t delta = high - low + 1;
+        EXPECT_NE(ER_OK, AdjustVolume(port, delta));
+        EXPECT_NE(ER_OK, AdjustVolume(port, delta * -1));
+    }
     delete stream;
 }
