@@ -77,6 +77,7 @@ class ALSADevice : public AudioDevice {
 
     const char* mAudioDeviceName;
     const char* mAudioMixerName;
+    qcc::Mutex mMutex;
     bool mMute;
     long mVolume;
     long mMinVolume;

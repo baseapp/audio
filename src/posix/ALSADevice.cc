@@ -71,13 +71,8 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
         return false;
     }
 
+    mMutex.Lock();
     snd_pcm_hw_params_t* hw_params = NULL;
-    if ((err = snd_pcm_hw_params_malloc(&hw_params)) < 0) {
-        QCC_LogError(ER_OS_ERROR, ("cannot allocate hardware parameter structure (%s)", snd_strerror(err)));
-        snd_pcm_close(mAudioDeviceHandle);
-        return false;
-    }
-
 #define AUDIO_CLEANUP() \
     if (mAudioDeviceHandle != NULL) { \
         snd_pcm_close(mAudioDeviceHandle); \
@@ -86,6 +81,13 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
     if (hw_params != NULL) { \
         snd_pcm_hw_params_free(hw_params); \
         hw_params = NULL; \
+    } \
+    mMutex.Unlock();
+
+    if ((err = snd_pcm_hw_params_malloc(&hw_params)) < 0) {
+        QCC_LogError(ER_OS_ERROR, ("cannot allocate hardware parameter structure (%s)", snd_strerror(err)));
+        AUDIO_CLEANUP();
+        return false;
     }
 
     if ((err = snd_pcm_hw_params_any(mAudioDeviceHandle, hw_params)) < 0) {
@@ -204,6 +206,7 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
         StartAudioMixerThread();
     }
 
+    mMutex.Unlock();
     return true;
 }
 
@@ -211,6 +214,7 @@ void ALSADevice::Close(bool drain) {
     QCC_DbgTrace(("%s(drain=%d)", __FUNCTION__, drain));
 
     if (mAudioDeviceHandle != NULL) {
+        mMutex.Lock();
         if (mAudioMixerHandle != NULL) {
             StopAudioMixerThread();
             snd_mixer_close(mAudioMixerHandle);
@@ -222,6 +226,7 @@ void ALSADevice::Close(bool drain) {
             snd_pcm_drain(mAudioDeviceHandle);
         snd_pcm_close(mAudioDeviceHandle);
         mAudioDeviceHandle = NULL;
+        mMutex.Unlock();
     }
 }
 
@@ -230,6 +235,7 @@ bool ALSADevice::Pause() {
         return false;
 
     bool hasPaused = false;
+    mMutex.Lock();
 
     if (mHardwareCanPause) {
         int err = snd_pcm_pause(mAudioDeviceHandle, 1);
@@ -248,6 +254,7 @@ bool ALSADevice::Pause() {
         hasPaused = err == 0;
     }
 
+    mMutex.Unlock();
     return hasPaused;
 }
 
@@ -255,20 +262,28 @@ bool ALSADevice::Play() {
     if (!mAudioDeviceHandle)
         return false;
 
+    bool success = true;
+    mMutex.Lock();
+
     // If not paused then no need to do anything, ALSA will start playing on write
     if (snd_pcm_state(mAudioDeviceHandle) == SND_PCM_STATE_PAUSED) {
         int err = snd_pcm_pause(mAudioDeviceHandle, 0);
         if (err < 0) {
             QCC_LogError(ER_OS_ERROR, ("resume failed (%s)", snd_strerror(err)));
-            return false;
+            success = false;
         }
     }
-    return true;
+
+    mMutex.Unlock();
+    return success;
 }
 
 bool ALSADevice::Recover() {
     if (!mAudioDeviceHandle)
         return false;
+
+    bool success = false;
+    mMutex.Lock();
 
     if (snd_pcm_state(mAudioDeviceHandle) == SND_PCM_STATE_XRUN) {
         int err = snd_pcm_drop(mAudioDeviceHandle);
@@ -279,27 +294,35 @@ bool ALSADevice::Recover() {
         if (err < 0)
             QCC_LogError(ER_OS_ERROR, ("prepare after underrun failed (%s)", snd_strerror(err)));
 
-        return true;
+        success = true;
     }
 
-    return false;
+    mMutex.Unlock();
+    return success;
 }
 
 uint32_t ALSADevice::GetDelay() {
     if (!mAudioDeviceHandle)
         return 0;
 
+    uint32_t delay = 0;
+    mMutex.Lock();
+
     snd_pcm_sframes_t delayInFrames = 0;
     if (snd_pcm_delay(mAudioDeviceHandle, &delayInFrames) == 0)
-        return delayInFrames > 0 ? (uint32_t)delayInFrames : 0;
-    return 0;
+        delay = delayInFrames > 0 ? (uint32_t)delayInFrames : 0;
+
+    mMutex.Unlock();
+    return delay;
 }
 
 uint32_t ALSADevice::GetFramesWanted() {
     if (!mAudioDeviceHandle)
         return 0;
 
+    mMutex.Lock();
     snd_pcm_sframes_t framesWanted = snd_pcm_avail_update(mAudioDeviceHandle);
+    mMutex.Unlock();
     return framesWanted > 0 ? (uint32_t)framesWanted : 0;
 }
 
@@ -307,6 +330,7 @@ bool ALSADevice::Write(const uint8_t* buffer, uint32_t bufferSizeInFrames) {
     if (!mAudioDeviceHandle)
         return false;
 
+    mMutex.Lock();
     snd_pcm_sframes_t err = snd_pcm_writei(mAudioDeviceHandle, buffer, bufferSizeInFrames);
     if (err < 0)
         err = snd_pcm_recover(mAudioDeviceHandle, err, 0);
@@ -314,6 +338,7 @@ bool ALSADevice::Write(const uint8_t* buffer, uint32_t bufferSizeInFrames) {
         QCC_LogError(ER_OS_ERROR, ("write to audio interface failed (%s)", snd_strerror(err)));
     if (err > 0 && err != (snd_pcm_sframes_t)bufferSizeInFrames)
         QCC_LogError(ER_OS_ERROR, ("short write (expected %u, wrote %li)", bufferSizeInFrames, err));
+    mMutex.Unlock();
     return err > 0;
 }
 
@@ -322,14 +347,19 @@ bool ALSADevice::GetMute(bool& mute) {
     if (!elem)
         return false;
 
+    bool success = true;
+    mMutex.Lock();
+
     int on;
     int err;
     if ((err = snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_FRONT_LEFT, &on)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("cannot get playback switch (%s)", snd_strerror(err)));
-        return false;
+        success = false;
     }
     mute = !on;
-    return true;
+
+    mMutex.Unlock();
+    return success;
 }
 
 bool ALSADevice::SetMute(bool mute) {
@@ -337,18 +367,23 @@ bool ALSADevice::SetMute(bool mute) {
     if (!elem)
         return false;
 
+    bool success = true;
+    mMutex.Lock();
+
     int on = !mute;
     int err;
     if ((err = snd_mixer_selem_set_playback_switch_all(elem, on)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("cannot set playback switch (%s)", snd_strerror(err)));
-        return false;
+        success = false;
     }
 #if ALERT_EVENT_THREAD_ON_SET
-    if (mAudioMixerThread != NULL) {
+    if (success && mAudioMixerThread != NULL) {
         mAudioMixerThread->Alert();
     }
 #endif
-    return true;
+
+    mMutex.Unlock();
+    return success;
 }
 
 int16_t ALSADevice::ALSAToAllJoyn(long volume) {
@@ -364,12 +399,17 @@ bool ALSADevice::GetVolume(long& volume) {
     if (!elem)
         return false;
 
+    bool success = true;
+    mMutex.Lock();
+
     int err;
     if ((err = snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_FRONT_LEFT, &volume)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("get playback volume failed: %s", snd_strerror(err)));
-        return false;
+        success = false;
     }
-    return true;
+
+    mMutex.Unlock();
+    return success;
 }
 
 bool ALSADevice::GetVolumeRange(int16_t& low, int16_t& high, int16_t& step) {
@@ -393,19 +433,24 @@ bool ALSADevice::SetVolume(int16_t volume) {
     if (!elem)
         return false;
 
+    bool success = true;
+    mMutex.Lock();
+
     long value = AllJoynToALSA(volume);
 
     int err;
     if ((err = snd_mixer_selem_set_playback_volume_all(elem, value)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("set playback volume failed: %s", snd_strerror(err)));
-        return false;
+        success = false;
     }
 #if ALERT_EVENT_THREAD_ON_SET
-    if (mAudioMixerThread != NULL) {
+    if (success && mAudioMixerThread != NULL) {
         mAudioMixerThread->Alert();
     }
 #endif
-    return true;
+
+    mMutex.Unlock();
+    return success;
 }
 
 void ALSADevice::StartAudioMixerThread() {
@@ -429,6 +474,7 @@ ThreadReturn ALSADevice::AudioMixerThread(void* arg) {
     Thread* selfThread = Thread::GetThread();
     int err;
 
+    ad->mMutex.Lock();
     if (ad->mAudioMixerElementMaster != NULL) {
         snd_mixer_elem_set_callback_private(ad->mAudioMixerElementMaster, ad);
         snd_mixer_elem_set_callback(ad->mAudioMixerElementMaster, &AudioMixerEvent);
@@ -445,6 +491,7 @@ ThreadReturn ALSADevice::AudioMixerThread(void* arg) {
     if ((err = snd_mixer_poll_descriptors(ad->mAudioMixerHandle, pfds, count)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("cannot open audio device (%s)", snd_strerror(err)));
         delete[] pfds;
+        ad->mMutex.Unlock();
         return NULL;
     }
     for (int i = 0; i < count; ++i) {
@@ -452,6 +499,7 @@ ThreadReturn ALSADevice::AudioMixerThread(void* arg) {
     }
     waitEvents.push_back(&stopEvent);
     delete[] pfds;
+    ad->mMutex.Unlock();
 
     while (!selfThread->IsStopping()) {
         QStatus status = Event::Wait(waitEvents, signaledEvents);
@@ -467,11 +515,15 @@ ThreadReturn ALSADevice::AudioMixerThread(void* arg) {
             } else {
                 // Thread has been instructed to explicitly poll the state.
                 selfThread->GetStopEvent().ResetEvent();
+                ad->mMutex.Lock();
                 AudioMixerEvent(ad->mAudioMixerElementMaster ? ad->mAudioMixerElementMaster : ad->mAudioMixerElementPCM,
                                 SND_CTL_EVENT_MASK_VALUE);
+                ad->mMutex.Unlock();
             }
         } else {
+            ad->mMutex.Lock();
             snd_mixer_handle_events(ad->mAudioMixerHandle);
+            ad->mMutex.Unlock();
         }
 
         signaledEvents.clear();
@@ -484,6 +536,9 @@ ThreadReturn ALSADevice::AudioMixerThread(void* arg) {
     return NULL;
 }
 
+/*
+ * Called with the lock.
+ */
 int ALSADevice::AudioMixerEvent(snd_mixer_elem_t* elem, unsigned int mask) {
     ALSADevice* ad = reinterpret_cast<ALSADevice*>(snd_mixer_elem_get_callback_private(elem));
     if (!ad)
