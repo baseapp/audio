@@ -29,8 +29,8 @@
 class MyAllJoynCode : public ajn::services::SinkSearcher, public ajn::services::SinkListener  {
   public:
     MyAllJoynCode(JavaVM* vm, jobject jobj) : vm(vm), jobj(jobj),
-        mBusAttachment(NULL), mSinkPlayer(NULL), mCurrentDataSource(NULL),
-        mDataSourcePath(NULL), isMuted(false), wasStopped(true)  { };
+        mDataSourcePath(NULL), mBusAttachment(NULL), mSinkPlayer(NULL),
+        mCurrentDataSource(NULL), isMuted(false), wasStopped(true)  { };
 
     ~MyAllJoynCode() {
         Release();

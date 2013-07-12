@@ -2,9 +2,7 @@ LOCAL_PATH := $(call my-dir)
 
 # AllJoyn specifics
 ALLJOYN_DIST := ../../../../build/android/arm/$(APP_OPTIM)/dist
-ALLJOYN_COMMON := ../../../../../common
-AUDIO_SERVICE_PATH := ../../../..
-ABOUT_SERVICE_PATH := ../../../../../about
+AUDIO_DIST := ../../../../build/android/arm/$(APP_OPTIM)/dist/audio
 
 include $(CLEAR_VARS)
 
@@ -14,10 +12,7 @@ TARGET_PLATFORM := android-8
 
 LOCAL_C_INCLUDES := \
 	$(ALLJOYN_DIST)/cpp/inc \
-	$(ALLJOYN_DIST)/cpp/inc/alljoyn \
-	$(ALLJOYN_COMMON)/inc \
-	$(LOCAL_PATH)/$(AUDIO_SERVICE_PATH)/inc \
-	$(LOCAL_PATH)/$(ABOUT_SERVICE_PATH)/cpp/inc \
+	$(AUDIO_DIST)/cpp/inc \
 	$(NDK_PLATFORMS_ROOT)/$(TARGET_PLATFORM)/arch-arm/usr/include \
 	$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/include \
 	$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/libs/armeabi/include \
@@ -31,27 +26,15 @@ LOCAL_CPP_EXTENSION := .cc
 LOCAL_SRC_FILES := \
 	AndroidJNIBridge.cc \
 	MyAllJoynListeners.cc \
-	MyAllJoynCode.cc \
-    $(AUDIO_SERVICE_PATH)/src/StreamObject.cc \
-	$(AUDIO_SERVICE_PATH)/src/AudioCodec.cc \
-    $(AUDIO_SERVICE_PATH)/src/AudioSinkObject.cc \
-    $(AUDIO_SERVICE_PATH)/src/ImageSinkObject.cc \
-    $(AUDIO_SERVICE_PATH)/src/MetadataSinkObject.cc \
-    $(AUDIO_SERVICE_PATH)/src/PortObject.cc \
-    $(AUDIO_SERVICE_PATH)/src/RawCodec.cc \
-    $(AUDIO_SERVICE_PATH)/src/SinkPlayer.cc \
-    $(AUDIO_SERVICE_PATH)/src/SinkSearcher.cc \
-    $(AUDIO_SERVICE_PATH)/src/WavDataSource.cc \
-    $(AUDIO_SERVICE_PATH)/src/android/AndroidDevice.cc \
-	$(ABOUT_SERVICE_PATH)/cpp/src/AboutService.cc
+	MyAllJoynCode.cc
 
 LOCAL_LDLIBS := \
 	-L$(NDK_PLATFORMS_ROOT)/$(TARGET_PLATFORM)/arch-arm/usr/lib \
 	-L$(ALLJOYN_DIST)/cpp/lib \
-	-L$(ALLJOYN_DIST)/audio/lib \
     -L$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/libs/armeabi \
     -L$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi \
     $(ALLJOYN_DIST)/cpp/lib/BundledDaemon.o \
+    $(AUDIO_DIST)/cpp/lib/liballjoyn_audio.a \
 	-lajdaemon -lalljoyn -llog -lz -ldl -lssl -lcrypto -lm -lc -lstdc++  -lgcc -lgnustl_static -lOpenSLES
 
 LOCAL_ARM_MODE := arm

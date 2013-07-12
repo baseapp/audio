@@ -18,7 +18,6 @@ package org.alljoyn.services.audio;
 
 import java.io.IOException;
 
-import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
@@ -29,10 +28,12 @@ import android.util.Log;
 
 /**
  * A MediaPlayer that enables the ability to send audio over the AllJoyn Audio service.
+ *
  * This class extends the MediaPlayer to add the ability to communicate with AllJoyn
  * Audio service Sinks.  It is both a re-usable library and an example application.
  * The jni wrapper code is an implementation of using the AllJoyn Audio service APIs,
  * see the AllJoyn Audio Service Usage Guide for more details.
+ *
  * The "Getting Started with the AllJoyn Audio Service using Java" details how you can
  * setup your environment in Android to use this library.
  */	

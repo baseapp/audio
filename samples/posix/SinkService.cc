@@ -25,7 +25,9 @@
 #include <alljoyn/version.h>
 #include <qcc/String.h>
 #include <signal.h>
+#include <stdio.h>
 #include <sys/utsname.h>
+#include <time.h>
 
 using namespace ajn::services;
 using namespace ajn;

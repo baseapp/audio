@@ -39,11 +39,12 @@
 namespace ajn {
 namespace services {
 
-WavDataSource::WavDataSource() : mInputFile(NULL) {
+WavDataSource::WavDataSource() : mInputFileMutex(new qcc::Mutex()), mInputFile(NULL) {
 }
 
 WavDataSource::~WavDataSource() {
     Close();
+    delete mInputFileMutex;
 }
 
 bool WavDataSource::Open(FILE* inputFile) {
@@ -141,14 +142,14 @@ bool WavDataSource::ReadHeader() {
 }
 
 size_t WavDataSource::ReadData(uint8_t* buffer, size_t offset, size_t length) {
-    mInputFileMutex.Lock();
+    mInputFileMutex->Lock();
     size_t r = 0;
     if (mInputFile) {
         fseek(mInputFile, mInputDataStart + offset, SEEK_SET);
         length = MIN(mInputSize - offset, length);
         r = fread(buffer, 1, length, mInputFile);
     }
-    mInputFileMutex.Unlock();
+    mInputFileMutex->Unlock();
     return r;
 }
 

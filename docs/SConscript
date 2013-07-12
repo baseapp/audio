@@ -18,13 +18,14 @@ Import('env')
 returnValue = []
 
 docenv = env.Clone()
+docenv['ENV']['AUDIO_CPP_DISTDIR'] = str(env.Dir('$AUDIO_CPP_DISTDIR'))
 
 # Build docs
 if docenv['DOCS'] == 'html':
     # the target directory 'docs/tmp' is never built this will cause doxygen 
     # to run every time DOCS == 'html'
     generateDocs = docenv.Doxygen(source='Doxygen_html', target=[Dir('tmp'), Dir('html')])
-    returnValue = docenv.Install('$AUDIO_DISTDIR/docs', Dir('html'))
+    returnValue = docenv.Install('$AUDIO_CPP_DISTDIR/docs', Dir('html'))
     docenv.Clean('Doxygen_html', Dir('html'))
     docenv.Depends(returnValue, generateDocs)
 

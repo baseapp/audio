@@ -27,8 +27,13 @@
 #endif
 
 #include <alljoyn/audio/AudioDevice.h>
-#include <qcc/Thread.h>
 #include <alsa/asoundlib.h>
+#include <set>
+
+namespace qcc {
+class Mutex;
+class Thread;
+}
 
 namespace ajn {
 namespace services {
@@ -45,6 +50,7 @@ class ALSADevice : public AudioDevice {
      * @param[in] mixerName the name of the ALSA mixer HCTL.
      */
     ALSADevice(const char* deviceName, const char* mixerName);
+    ~ALSADevice();
 
     bool Open(const char* format, uint32_t sampleRate, uint32_t numChannels, uint32_t& bufferSize);
     void Close(bool drain = false);
@@ -69,7 +75,7 @@ class ALSADevice : public AudioDevice {
     bool GetVolume(long& volume);
     void StartAudioMixerThread();
     void StopAudioMixerThread();
-    static qcc::ThreadReturn AudioMixerThread(void* arg);
+    static void* AudioMixerThread(void* arg);
     static int AudioMixerEvent(snd_mixer_elem_t* elem, unsigned int mask);
 
   private:
@@ -77,7 +83,7 @@ class ALSADevice : public AudioDevice {
 
     const char* mAudioDeviceName;
     const char* mAudioMixerName;
-    qcc::Mutex mMutex;
+    qcc::Mutex* mMutex;
     bool mMute;
     long mVolume;
     long mMinVolume;
@@ -90,7 +96,7 @@ class ALSADevice : public AudioDevice {
     snd_mixer_elem_t* mAudioMixerElementPCM;
     bool mHardwareCanPause;
     qcc::Thread* mAudioMixerThread;
-    qcc::Mutex mListenersMutex;
+    qcc::Mutex* mListenersMutex;
     Listeners mListeners;
 };
 

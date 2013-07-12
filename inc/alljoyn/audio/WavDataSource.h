@@ -27,8 +27,9 @@
 #endif
 
 #include <alljoyn/audio/DataSource.h>
-#include <qcc/Mutex.h>
 #include <stdio.h>
+
+namespace qcc { class Mutex; }
 
 namespace ajn {
 namespace services {
@@ -79,7 +80,7 @@ class WavDataSource : public DataSource {
     uint32_t mBitsPerChannel;
     uint32_t mInputSize;
     uint32_t mInputDataStart;
-    qcc::Mutex mInputFileMutex;
+    qcc::Mutex* mInputFileMutex;
     FILE* mInputFile;
 };
 

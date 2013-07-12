@@ -26,5 +26,12 @@ progs = [
     env.Program('SinkService',  ['SinkService.cc']),
     ]
 
-returnValue = env.Install('$AUDIO_DISTDIR/bin', progs)
+# The return value is the collection of files installed in the build destination.
+returnValue = []
+
+if env['OS'] != 'android':
+    returnValue += env.Install('$AUDIO_CPP_DISTDIR/bin/samples', progs)
+    returnValue += env.Install('$AUDIO_CPP_DISTDIR/samples', env.Glob('*.cc'))
+    returnValue += env.Install('$AUDIO_CPP_DISTDIR/samples', 'README.txt')
+
 Return ('returnValue')

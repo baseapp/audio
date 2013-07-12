@@ -24,6 +24,7 @@
 #include "Sink.h"
 #include <alljoyn/BusAttachment.h>
 #include <qcc/Debug.h>
+#include <qcc/Mutex.h>
 #include <inttypes.h>
 
 #define QCC_MODULE "ALLJOYN_AUDIO"
@@ -37,10 +38,10 @@ namespace ajn {
 namespace services {
 
 StreamObject::StreamObject(BusAttachment* bus, const char* path, AudioDevice* audioDevice,
-                           SessionPort sp, PropertyStore* props) : BusObject(path),
-    mOwner(NULL), mAudioDevice(audioDevice), mAbout(NULL),
+                           SessionPort sp, PropertyStore* props)
+    : BusObject(path), mOwner(NULL), mAudioDevice(audioDevice), mAbout(NULL),
     mAudioSinkObjectPath(NULL), mImageSinkObjectPath(NULL), mMetadataSinkObjectPath(NULL),
-    mClockAdjustment(0) {
+    mPortsMutex(new qcc::Mutex()), mClockAdjustment(0) {
     mSessionPort = sp;
     mAbout = new AboutService(*bus, *props);
 
@@ -81,7 +82,7 @@ StreamObject::~StreamObject() {
     if (mMetadataSinkObjectPath != NULL)
         free((void*)mMetadataSinkObjectPath);
 
-    mPortsMutex.Lock();
+    mPortsMutex->Lock();
     for (std::vector<PortObject*>::iterator it = mPorts.begin(); it != mPorts.end(); ++it) {
         PortObject* p = *it;
         bus->UnregisterBusObject(*p);
@@ -89,7 +90,8 @@ StreamObject::~StreamObject() {
         delete p;
     }
     mPorts.clear();
-    mPortsMutex.Unlock();
+    mPortsMutex->Unlock();
+    delete mPortsMutex;
 }
 
 QStatus StreamObject::Register(BusAttachment* bus) {
@@ -102,7 +104,7 @@ QStatus StreamObject::Register(BusAttachment* bus) {
     intfNames.push_back(CLOCK_INTERFACE);
     mAbout->AddObjectDescription(this->GetPath(), intfNames);
 
-    mPortsMutex.Lock();
+    mPortsMutex->Lock();
 
     mPorts.push_back(new AudioSinkObject(bus, mAudioSinkObjectPath, this, mAudioDevice));
     bus->RegisterBusObject(*mPorts.back());
@@ -126,7 +128,7 @@ QStatus StreamObject::Register(BusAttachment* bus) {
     intfNames.push_back(METADATA_SINK_INTERFACE);
     mAbout->AddObjectDescription(mPorts.back()->GetPath(), intfNames);
 
-    mPortsMutex.Unlock();
+    mPortsMutex->Unlock();
 
     QStatus status = mAbout->Announce();
     if (status != ER_OK)
@@ -138,7 +140,7 @@ QStatus StreamObject::Register(BusAttachment* bus) {
 void StreamObject::Unregister() {
     mAbout->Unregister();
 
-    mPortsMutex.Lock();
+    mPortsMutex->Lock();
     for (std::vector<PortObject*>::iterator it = mPorts.begin(); it != mPorts.end(); ++it) {
         PortObject* p = *it;
         if (mOwner != NULL) {
@@ -150,7 +152,7 @@ void StreamObject::Unregister() {
         delete p;
     }
     mPorts.clear();
-    mPortsMutex.Unlock();
+    mPortsMutex->Unlock();
 
     free((void*)mOwner);
     mOwner = NULL;
@@ -194,7 +196,7 @@ void StreamObject::Open(const InterfaceDescription::Member* member, Message& msg
         return;
     }
 
-    mPortsMutex.Lock();
+    mPortsMutex->Lock();
     for (std::vector<PortObject*>::iterator it = mPorts.begin(); it != mPorts.end(); ++it) {
         PortObject* p = *it;
         if (mOwner != NULL) {
@@ -203,7 +205,7 @@ void StreamObject::Open(const InterfaceDescription::Member* member, Message& msg
         }
         p->Cleanup();
     }
-    mPortsMutex.Unlock();
+    mPortsMutex->Unlock();
 
     uint32_t oldSessionId = 0;
     if (mOwner != NULL) {
@@ -242,12 +244,12 @@ void StreamObject::Close(const InterfaceDescription::Member* member, Message& ms
 
     QCC_DbgHLPrintf(("Closing ports for owner=\"%s\" sessionId=%u", mOwner, mSessionId));
 
-    mPortsMutex.Lock();
+    mPortsMutex->Lock();
     for (std::vector<PortObject*>::iterator it = mPorts.begin(); it != mPorts.end(); ++it) {
         PortObject* p = *it;
         p->Cleanup(true);
     }
-    mPortsMutex.Unlock();
+    mPortsMutex->Unlock();
 
     free((void*)mOwner);
     mOwner = NULL;

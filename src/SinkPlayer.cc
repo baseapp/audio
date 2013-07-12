@@ -22,6 +22,8 @@
 #include <alljoyn/audio/Audio.h>
 #include <alljoyn/audio/AudioCodec.h>
 #include <qcc/Debug.h>
+#include <qcc/Mutex.h>
+#include <qcc/Thread.h>
 #include <algorithm>
 #include <inttypes.h>
 
@@ -199,7 +201,10 @@ class SinkSessionListener : public SessionListener {
     }
 };
 
-SinkPlayer::SinkPlayer(BusAttachment* msgBus) : MessageReceiver(), mDataSource(NULL), mSinkListenerThread(NULL) {
+SinkPlayer::SinkPlayer(BusAttachment* msgBus)
+    : MessageReceiver(), mSinkListenersMutex(new qcc::Mutex()), mDataSource(NULL),
+    mSinksMutex(new qcc::Mutex()), mAddThreadsMutex(new qcc::Mutex()), mRemoveThreadsMutex(new qcc::Mutex()),
+    mEmitThreadsMutex(new qcc::Mutex()), mSinkListenerThread(NULL) {
     mMsgBus = msgBus;
     mSessionListener = new SinkSessionListener(this);
     mPreferredFormat = strdup(MIMETYPE_AUDIO_RAW);
@@ -252,19 +257,25 @@ SinkPlayer::~SinkPlayer() {
     }
 
     mMsgBus->UnregisterAllHandlers(this);
+
+    delete mEmitThreadsMutex;
+    delete mRemoveThreadsMutex;
+    delete mAddThreadsMutex;
+    delete mSinksMutex;
+    delete mSinkListenersMutex;
 }
 
 bool SinkPlayer::SetDataSource(DataSource* theSource) {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
         SinkInfo* si = &(*it);
         if (si->mState == SinkInfo::OPENED) {
-            mSinksMutex.Unlock();
+            mSinksMutex->Unlock();
             QCC_LogError(ER_FAIL, ("Sinks must be closed before SetDataSource"));
             return false;
         }
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     mDataSource = theSource;
     mState = PlayerState::INIT;
@@ -283,17 +294,17 @@ bool SinkPlayer::SetPreferredFormat(const char* format) {
 }
 
 void SinkPlayer::AddListener(SinkListener* listener) {
-    mSinkListenersMutex.Lock();
+    mSinkListenersMutex->Lock();
     mSinkListeners.insert(listener);
     if (!mSinkListenerThread) {
         mSinkListenerThread = new Thread("SinkListener", &SinkListenerThread);
         mSinkListenerThread->Start(this);
     }
-    mSinkListenersMutex.Unlock();
+    mSinkListenersMutex->Unlock();
 }
 
 void SinkPlayer::RemoveListener(SinkListener* listener) {
-    mSinkListenersMutex.Lock();
+    mSinkListenersMutex->Lock();
     SinkListeners::iterator it = mSinkListeners.find(listener);
     if (it != mSinkListeners.end())
         mSinkListeners.erase(it);
@@ -303,7 +314,7 @@ void SinkPlayer::RemoveListener(SinkListener* listener) {
         delete mSinkListenerThread;
         mSinkListenerThread = NULL;
     }
-    mSinkListenersMutex.Unlock();
+    mSinkListenersMutex->Unlock();
 }
 
 struct AddSinkInfo {
@@ -315,19 +326,19 @@ struct AddSinkInfo {
 };
 
 bool SinkPlayer::AddSink(const char* name, SessionPort port, const char* path) {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     bool exists = find_if(mSinks.begin(), mSinks.end(), FindSink(name)) != mSinks.end();
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     if (exists) {
         QCC_LogError(ER_FAIL, ("AddSink error: already added"));
         return false;
     }
 
-    mAddThreadsMutex.Lock();
+    mAddThreadsMutex->Lock();
     int count = mAddThreads.count(name);
     if (count > 0) {
         QCC_LogError(ER_FAIL, ("AddSink error: already being added"));
-        mAddThreadsMutex.Unlock();
+        mAddThreadsMutex->Unlock();
         return false;
     }
 
@@ -338,7 +349,7 @@ bool SinkPlayer::AddSink(const char* name, SessionPort port, const char* path) {
     asi->sp = this;
     Thread* t = new Thread("AddSink", &AddSinkThread);
     mAddThreads[name] = t;
-    mAddThreadsMutex.Unlock();
+    mAddThreadsMutex->Unlock();
     t->Start(asi);
 
     return true;
@@ -355,14 +366,14 @@ ThreadReturn SinkPlayer::AddSinkThread(void* arg) {
     SinkPlayer* sp = asi->sp;
 
 #define RETURN_ADD_FAILURE() { \
-        sp->mSinkListenersMutex.Lock(); \
+        sp->mSinkListenersMutex->Lock(); \
         SinkListeners::iterator it = sp->mSinkListeners.begin(); \
         while (it != sp->mSinkListeners.end()) { \
             SinkListener* listener = *it; \
             listener->SinkAddFailed(asi->name); \
             it = sp->mSinkListeners.upper_bound(listener); \
         } \
-        sp->mSinkListenersMutex.Unlock(); \
+        sp->mSinkListenersMutex->Unlock(); \
         sp->FreeSinkInfo(&si); \
         if (asi->name != NULL) \
             free((void*)asi->name); \
@@ -397,25 +408,25 @@ ThreadReturn SinkPlayer::AddSinkThread(void* arg) {
     assert(clockIntf);
     si.streamObj->AddInterface(*clockIntf);
 
-    sp->mSinksMutex.Lock();
+    sp->mSinksMutex->Lock();
     std::list<SinkInfo>::iterator sit = find_if(sp->mSinks.begin(), sp->mSinks.end(), FindSink(si.serviceName));
     if (sit != sp->mSinks.end())
         sp->mSinks.erase(sit);
     sp->mSinks.push_back(si);
-    sp->mSinksMutex.Unlock();
+    sp->mSinksMutex->Unlock();
 
-    sp->mAddThreadsMutex.Lock();
+    sp->mAddThreadsMutex->Lock();
     sp->mAddThreads.erase(si.serviceName);
-    sp->mAddThreadsMutex.Unlock();
+    sp->mAddThreadsMutex->Unlock();
 
-    sp->mSinkListenersMutex.Lock();
+    sp->mSinkListenersMutex->Lock();
     SinkListeners::iterator it = sp->mSinkListeners.begin();
     while (it != sp->mSinkListeners.end()) {
         SinkListener* listener = *it;
         listener->SinkAdded(si.serviceName);
         it = sp->mSinkListeners.upper_bound(listener);
     }
-    sp->mSinkListenersMutex.Unlock();
+    sp->mSinkListenersMutex->Unlock();
 
     free((void*)asi->name);
     free((void*)asi->path);
@@ -425,10 +436,10 @@ ThreadReturn SinkPlayer::AddSinkThread(void* arg) {
 }
 
 bool SinkPlayer::OpenSink(const char* name) {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     SinkInfo* si = (it != mSinks.end()) ? &(*it) : NULL;
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     if (!si) {
         QCC_LogError(ER_FAIL, ("OpenSink error: not found"));
         return false;
@@ -590,7 +601,7 @@ bool SinkPlayer::OpenSink(const char* name) {
         return false;
     }
 
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     SinkInfo* fsi = NULL;
     for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
         if (it->mState == SinkInfo::OPENED) {
@@ -621,22 +632,22 @@ bool SinkPlayer::OpenSink(const char* name) {
         si->timestamp -= (uint64_t)(((double)bytesDiff / bytesPerSecond) * 1000000000);
         si->inputDataBytesRemaining += bytesDiff;
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     if (mState == PlayerState::PLAYING) {
         EmitAudioInfo* eai = new EmitAudioInfo;
         eai->sp = this;
 
-        mSinksMutex.Lock();
+        mSinksMutex->Lock();
         std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(si->serviceName));
         eai->si = &(*it);
-        mSinksMutex.Unlock();
+        mSinksMutex->Unlock();
 
-        mEmitThreadsMutex.Lock();
+        mEmitThreadsMutex->Lock();
         Thread* t = new Thread("EmitAudio", &EmitAudioThread);
         mEmitThreads[si->serviceName] = t;
         t->Start(eai);
-        mEmitThreadsMutex.Unlock();
+        mEmitThreadsMutex->Unlock();
     }
 
     si->mState = SinkInfo::OPENED;
@@ -655,34 +666,34 @@ bool SinkPlayer::RemoveSink(const char* name) {
 }
 
 bool SinkPlayer::RemoveSink(ajn::SessionId sessionId, bool lost) {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
         SinkInfo* si = &(*it);
         if (si->sessionId == sessionId) {
             RemoveSink(si->serviceName, lost);
-            mSinksMutex.Unlock();
+            mSinksMutex->Unlock();
             return true;
         }
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     return false;
 }
 
 bool SinkPlayer::RemoveSink(const char* name, bool lost) {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     bool exists = find_if(mSinks.begin(), mSinks.end(), FindSink(name)) != mSinks.end();
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     if (!exists) {
         QCC_LogError(ER_FAIL, ("RemoveSink error: not found"));
         return false;
     }
 
-    mRemoveThreadsMutex.Lock();
+    mRemoveThreadsMutex->Lock();
     int count = mRemoveThreads.count(name);
     if (count > 0) {
         QCC_LogError(ER_FAIL, ("RemoveSink error: already being removed"));
-        mRemoveThreadsMutex.Unlock();
+        mRemoveThreadsMutex->Unlock();
         return false;
     }
 
@@ -692,7 +703,7 @@ bool SinkPlayer::RemoveSink(const char* name, bool lost) {
     rsi->sp = this;
     Thread* t = new Thread("RemoveSink", &RemoveSinkThread);
     mRemoveThreads[name] = t;
-    mRemoveThreadsMutex.Unlock();
+    mRemoveThreadsMutex->Unlock();
     t->Start(rsi);
 
     return true;
@@ -702,11 +713,11 @@ ThreadReturn SinkPlayer::RemoveSinkThread(void* arg) {
     RemoveSinkInfo* rsi = reinterpret_cast<RemoveSinkInfo*>(arg);
     SinkPlayer* sp = rsi->sp;
 
-    sp->mSinksMutex.Lock();
+    sp->mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(sp->mSinks.begin(), sp->mSinks.end(), FindSink(rsi->name));
     SinkInfo* si = &(*it);
     QStatus status = sp->CloseSink(si, rsi->lost);
-    sp->mSinksMutex.Unlock();
+    sp->mSinksMutex->Unlock();
     if (status == ER_OK) {
         QCC_DbgTrace(("CloseSink success"));
     } else {
@@ -722,25 +733,25 @@ ThreadReturn SinkPlayer::RemoveSinkThread(void* arg) {
         }
     }
 
-    sp->mSinksMutex.Lock();
+    sp->mSinksMutex->Lock();
     std::list<SinkInfo>::iterator sit = find_if(sp->mSinks.begin(), sp->mSinks.end(), FindSink(rsi->name));
     sp->mSinks.erase(sit);
-    sp->mSinksMutex.Unlock();
+    sp->mSinksMutex->Unlock();
 
     sp->FreeSinkInfo(si);
 
-    sp->mRemoveThreadsMutex.Lock();
+    sp->mRemoveThreadsMutex->Lock();
     sp->mRemoveThreads.erase(rsi->name);
-    sp->mRemoveThreadsMutex.Unlock();
+    sp->mRemoveThreadsMutex->Unlock();
 
-    sp->mSinkListenersMutex.Lock();
+    sp->mSinkListenersMutex->Lock();
     SinkListeners::iterator lit = sp->mSinkListeners.begin();
     while (lit != sp->mSinkListeners.end()) {
         SinkListener* listener = *lit;
         listener->SinkRemoved(rsi->name, rsi->lost);
         lit = sp->mSinkListeners.upper_bound(listener);
     }
-    sp->mSinkListenersMutex.Unlock();
+    sp->mSinkListenersMutex->Unlock();
 
     free((void*)rsi->name);
     delete rsi;
@@ -749,16 +760,16 @@ ThreadReturn SinkPlayer::RemoveSinkThread(void* arg) {
 }
 
 bool SinkPlayer::CloseSink(const char* name) {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it == mSinks.end()) {
-        mSinksMutex.Unlock();
+        mSinksMutex->Unlock();
         QCC_LogError(ER_FAIL, ("CloseSink error: not found"));
         return false;
     }
     SinkInfo* si = &(*it);
     QStatus status = CloseSink(si);
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     if (status != ER_OK) {
         return false;
     }
@@ -767,19 +778,19 @@ bool SinkPlayer::CloseSink(const char* name) {
 
 QStatus SinkPlayer::CloseSink(SinkInfo* si, bool lost) {
     Thread* t = NULL;
-    mEmitThreadsMutex.Lock();
+    mEmitThreadsMutex->Lock();
     if (mEmitThreads.count(si->serviceName) > 0)
         t = mEmitThreads[si->serviceName];
-    mEmitThreadsMutex.Unlock();
+    mEmitThreadsMutex->Unlock();
 
     if (t != NULL) {
         t->Stop();
         t->Join();
     }
 
-    mEmitThreadsMutex.Lock();
+    mEmitThreadsMutex->Lock();
     mEmitThreads.erase(si->serviceName);
-    mEmitThreadsMutex.Unlock();
+    mEmitThreadsMutex->Unlock();
 
     if (!lost) {
         Message closeReply(*mMsgBus);
@@ -817,17 +828,17 @@ QStatus SinkPlayer::CloseSink(SinkInfo* si, bool lost) {
 }
 
 bool SinkPlayer::HasSink(const char* name) {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     bool has = find_if(mSinks.begin(), mSinks.end(), FindSink(name)) != mSinks.end();
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     return has;
 }
 
 bool SinkPlayer::RemoveAllSinks() {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     int count = mSinks.size();
     if (count == 0) {
-        mSinksMutex.Unlock();
+        mSinksMutex->Unlock();
         return false;
     }
 
@@ -836,14 +847,14 @@ bool SinkPlayer::RemoveAllSinks() {
         RemoveSink(si->serviceName, false);
     }
 
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     return true;
 }
 
 size_t SinkPlayer::GetSinkCount() {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     int count = mSinks.size();
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     return count;
 }
 
@@ -941,10 +952,10 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
 }
 
 bool SinkPlayer::OpenAllSinks() {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     int count = mSinks.size();
     if (count == 0) {
-        mSinksMutex.Unlock();
+        mSinksMutex->Unlock();
         return false;
     }
 
@@ -953,15 +964,15 @@ bool SinkPlayer::OpenAllSinks() {
         OpenSink(si->serviceName);
     }
 
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
     return true;
 }
 
 bool SinkPlayer::CloseAllSinks() {
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     int count = mSinks.size();
     if (count == 0) {
-        mSinksMutex.Unlock();
+        mSinksMutex->Unlock();
         return false;
     }
 
@@ -970,7 +981,7 @@ bool SinkPlayer::CloseAllSinks() {
         CloseSink(si->serviceName);
     }
 
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     return true;
 }
@@ -981,11 +992,11 @@ bool SinkPlayer::IsPlaying() {
 
 bool SinkPlayer::Play() {
     if (mState != PlayerState::PLAYING) {
-        mSinksMutex.Lock();
+        mSinksMutex->Lock();
         uint32_t inputDataBytesRemaining = 0;
         uint64_t timestamp = GetCurrentTimeNanos() + (mSinks.size() * 250000000); /* 0.25s */
         for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
-            mEmitThreadsMutex.Lock();
+            mEmitThreadsMutex->Lock();
             SinkInfo* si = &(*it);
             if (si->mState == SinkInfo::OPENED && mEmitThreads.count(si->serviceName) == 0) {
                 Message playReply(*mMsgBus);
@@ -1008,9 +1019,9 @@ bool SinkPlayer::Play() {
                 si->timestamp = timestamp;
                 t->Start(eai);
             }
-            mEmitThreadsMutex.Unlock();
+            mEmitThreadsMutex->Unlock();
         }
-        mSinksMutex.Unlock();
+        mSinksMutex->Unlock();
 
         mState = PlayerState::PLAYING;
 
@@ -1025,11 +1036,11 @@ bool SinkPlayer::Play() {
 
 bool SinkPlayer::Pause() {
     if (mState == PlayerState::PLAYING) {
-        mSinksMutex.Lock();
+        mSinksMutex->Lock();
         uint64_t pauseTimeNanos = GetCurrentTimeNanos() + (mSinks.size() * 250000000); /* 0.25s */
         uint64_t flushTimeNanos = pauseTimeNanos + 1000000;
         for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
-            mEmitThreadsMutex.Lock();
+            mEmitThreadsMutex->Lock();
             SinkInfo* si = &(*it);
             if (si->mState == SinkInfo::OPENED && mEmitThreads.count(si->serviceName) > 0) {
                 Message pauseReply(*mMsgBus);
@@ -1038,14 +1049,14 @@ bool SinkPlayer::Pause() {
                 if (status != ER_OK)
                     QCC_LogError(status, ("Pause error"));
 
-                mEmitThreadsMutex.Lock();
+                mEmitThreadsMutex->Lock();
                 Thread* t = mEmitThreads[si->serviceName];
-                mEmitThreadsMutex.Unlock();
+                mEmitThreadsMutex->Unlock();
                 t->Stop();
                 t->Join();
-                mEmitThreadsMutex.Lock();
+                mEmitThreadsMutex->Lock();
                 mEmitThreads.erase(si->serviceName);
-                mEmitThreadsMutex.Unlock();
+                mEmitThreadsMutex->Unlock();
 
                 Message flushReply(*mMsgBus);
                 MsgArg flushArgs("t", flushTimeNanos);
@@ -1055,9 +1066,9 @@ bool SinkPlayer::Pause() {
                 if (status != ER_OK)
                     QCC_LogError(status, ("Flush error"));
             }
-            mEmitThreadsMutex.Unlock();
+            mEmitThreadsMutex->Unlock();
         }
-        mSinksMutex.Unlock();
+        mSinksMutex->Unlock();
 
         mState = PlayerState::PAUSED;
 
@@ -1072,7 +1083,7 @@ bool SinkPlayer::Pause() {
 
 bool SinkPlayer::GetVolumeRange(const char* name, int16_t& low, int16_t& high, int16_t& step) {
     bool success = false;
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
         SinkInfo* si = &(*it);
@@ -1086,14 +1097,14 @@ bool SinkPlayer::GetVolumeRange(const char* name, int16_t& low, int16_t& high, i
         }
         success = (status == ER_OK);
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     return success;
 }
 
 bool SinkPlayer::GetVolume(const char* name, int16_t& volume) {
     bool success = false;
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
         SinkInfo* si = &(*it);
@@ -1107,14 +1118,14 @@ bool SinkPlayer::GetVolume(const char* name, int16_t& volume) {
         }
         success = (status == ER_OK);
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     return success;
 }
 
 bool SinkPlayer::SetVolume(const char* name, int16_t volume) {
     bool success = false;
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
         SinkInfo* si = &(*it);
@@ -1124,14 +1135,14 @@ bool SinkPlayer::SetVolume(const char* name, int16_t volume) {
             QCC_LogError(status, ("Set volume error"));
         success = (status == ER_OK);
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     return success;
 }
 
 bool SinkPlayer::GetMute(const char* name, bool& mute) {
     bool success = false;
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     if (name) {
         std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
         if (it != mSinks.end()) {
@@ -1165,14 +1176,14 @@ bool SinkPlayer::GetMute(const char* name, bool& mute) {
             }
         }
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     return success;
 }
 
 bool SinkPlayer::SetMute(const char* name, bool mute) {
     bool success = false;
-    mSinksMutex.Lock();
+    mSinksMutex->Lock();
     if (name) {
         std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
         if (it != mSinks.end()) {
@@ -1196,7 +1207,7 @@ bool SinkPlayer::SetMute(const char* name, bool mute) {
             }
         }
     }
-    mSinksMutex.Unlock();
+    mSinksMutex->Unlock();
 
     return success;
 }
@@ -1263,22 +1274,22 @@ void SinkPlayer::FreeSinkInfo(SinkInfo* si) {
 
 void SinkPlayer::MuteChangedSignalHandler(const InterfaceDescription::Member* member,
                                           const char* sourcePath, Message& msg) {
-    mSinkListenersMutex.Lock();
+    mSinkListenersMutex->Lock();
     if (mSinkListenerThread) {
         mSinkListenerQueue.push_back(msg);
         mSinkListenerThread->Alert();
     }
-    mSinkListenersMutex.Unlock();
+    mSinkListenersMutex->Unlock();
 }
 
 void SinkPlayer::VolumeChangedSignalHandler(const InterfaceDescription::Member* member,
                                             const char* sourcePath, Message& msg) {
-    mSinkListenersMutex.Lock();
+    mSinkListenersMutex->Lock();
     if (mSinkListenerThread) {
         mSinkListenerQueue.push_back(msg);
         mSinkListenerThread->Alert();
     }
-    mSinkListenersMutex.Unlock();
+    mSinkListenersMutex->Unlock();
 }
 
 ThreadReturn SinkPlayer::SinkListenerThread(void* arg) {
@@ -1290,14 +1301,14 @@ ThreadReturn SinkPlayer::SinkListenerThread(void* arg) {
         if (ER_ALERTED_THREAD == status) {
             t->GetStopEvent().ResetEvent();
 
-            sp->mSinkListenersMutex.Lock();
+            sp->mSinkListenersMutex->Lock();
             while (!sp->mSinkListenerQueue.empty()) {
                 Message msg = sp->mSinkListenerQueue.front();
                 sp->mSinkListenerQueue.pop_front();
-                sp->mSinkListenersMutex.Unlock();
+                sp->mSinkListenersMutex->Unlock();
 
                 SinkInfo si;
-                sp->mSinksMutex.Lock();
+                sp->mSinksMutex->Lock();
                 std::list<SinkInfo>::iterator sit;
                 for (sit = sp->mSinks.begin(); sit != sp->mSinks.end(); ++sit) {
                     si = (*sit);
@@ -1307,52 +1318,52 @@ ThreadReturn SinkPlayer::SinkListenerThread(void* arg) {
                 }
                 if (sit == sp->mSinks.end()) {
                     // Ignore signal from unknown sink
-                    sp->mSinksMutex.Unlock();
-                    sp->mSinkListenersMutex.Lock();
+                    sp->mSinksMutex->Unlock();
+                    sp->mSinkListenersMutex->Lock();
                     continue;
                 }
-                sp->mSinksMutex.Unlock();
+                sp->mSinksMutex->Unlock();
 
                 if (strcmp("MuteChanged", msg->GetMemberName()) == 0) {
                     bool mute;
                     QStatus status = msg->GetArg(0)->Get("b", &mute);
                     if (ER_OK != status) {
                         QCC_LogError(status, ("MuteChanged signal has invalid argument"));
-                        sp->mSinkListenersMutex.Lock();
+                        sp->mSinkListenersMutex->Lock();
                         continue;
                     }
 
-                    sp->mSinkListenersMutex.Lock();
+                    sp->mSinkListenersMutex->Lock();
                     SinkListeners::iterator it = sp->mSinkListeners.begin();
                     while (it != sp->mSinkListeners.end()) {
                         SinkListener* listener = *it;
                         listener->MuteChanged(si.serviceName, mute);
                         it = sp->mSinkListeners.upper_bound(listener);
                     }
-                    sp->mSinkListenersMutex.Unlock();
+                    sp->mSinkListenersMutex->Unlock();
 
                 } else if (strcmp("VolumeChanged", msg->GetMemberName()) == 0) {
                     int16_t volume;
                     QStatus status = msg->GetArg(0)->Get("n", &volume);
                     if (ER_OK != status) {
                         QCC_LogError(status, ("VolumeChanged signal has invalid argument"));
-                        sp->mSinkListenersMutex.Lock();
+                        sp->mSinkListenersMutex->Lock();
                         continue;
                     }
 
-                    sp->mSinkListenersMutex.Lock();
+                    sp->mSinkListenersMutex->Lock();
                     SinkListeners::iterator it = sp->mSinkListeners.begin();
                     while (it != sp->mSinkListeners.end()) {
                         SinkListener* listener = *it;
                         listener->VolumeChanged(si.serviceName, volume);
                         it = sp->mSinkListeners.upper_bound(listener);
                     }
-                    sp->mSinkListenersMutex.Unlock();
+                    sp->mSinkListenersMutex->Unlock();
                 }
 
-                sp->mSinkListenersMutex.Lock();
+                sp->mSinkListenersMutex->Lock();
             }
-            sp->mSinkListenersMutex.Unlock();
+            sp->mSinkListenersMutex->Unlock();
         }
     }
 

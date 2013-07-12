@@ -30,7 +30,8 @@
 #include <alljoyn/about/PropertyStore.h>
 #include <alljoyn/audio/AudioDevice.h>
 #include <alljoyn/BusObject.h>
-#include <qcc/Mutex.h>
+
+namespace qcc { class Mutex; }
 
 namespace ajn {
 namespace services {
@@ -133,7 +134,7 @@ class StreamObject : public ajn::BusObject {
     const char* mMetadataSinkObjectPath;
 
     /** Ports (Audio, Image, Metadata) */
-    qcc::Mutex mPortsMutex;
+    qcc::Mutex* mPortsMutex;
     std::vector<PortObject*> mPorts;
 
     /** Delta between local clock and stream clock. */

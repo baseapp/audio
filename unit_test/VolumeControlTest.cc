@@ -13,6 +13,7 @@
  *    See the license for the specific language governing permissions and
  *    limitations under the license.
  ******************************************************************************/
+#define __STDC_LIMIT_MACROS
 
 #include "AudioTest.h"
 #include "TestSignalHandler.h"

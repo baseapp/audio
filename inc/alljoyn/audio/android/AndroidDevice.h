@@ -26,10 +26,11 @@
 #endif
 
 #include <alljoyn/audio/AudioDevice.h>
-#include <qcc/Mutex.h>
 #include <set>
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
+
+namespace qcc { class Mutex; }
 
 namespace ajn {
 namespace services {
@@ -81,7 +82,7 @@ class AndroidDevice : public AudioDevice {
     uint8_t** mAudioBuffers;
     uint8_t mBufferIndex;
 
-    qcc::Mutex mListenersMutex;
+    qcc::Mutex* mListenersMutex;
     Listeners mListeners;
 };
 

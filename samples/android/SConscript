@@ -1,0 +1,55 @@
+# Copyright 2013, Qualcomm Innovation Center, Inc.
+#
+#    All rights reserved.
+#    This file is licensed under the 3-clause BSD license in the NOTICE.txt
+#    file for this project. A copy of the 3-clause BSD license is found at:
+#
+#        http://opensource.org/licenses/BSD-3-Clause. 
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the license is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the license for the specific language governing permissions and
+#    limitations under the license.
+
+Import('env')
+
+# Set the ABI based on the CPU
+if(env['CPU'] == 'arm'):
+    android_eabi = 'armeabi'
+else:
+    android_eabi = 'x86'
+
+# The return value is the collection of files installed in the build destination.
+returnValue = []
+
+# Bundled daemon environment to build JNI libs.
+bdenv = env.Clone()
+bdenv.Prepend(LIBS = env['bdlib'])
+bdenv.Prepend(LIBS = env['bdobj'])
+
+# Sink sample
+sink_srcs = env.Glob('Sink/jni/*.cc')
+sink_objs = env.SharedObject(sink_srcs)
+libAllJoynAudioSink = bdenv.SharedLibrary('AllJoynAudioSink', sink_objs)
+
+returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples/Sink/libs/%s' % android_eabi, libAllJoynAudioSink)
+returnValue += env.Install('$AUDIO_CPP_DISTDIR/inc/alljoyn/about', ['$ABOUT_BASE/inc/alljoyn/about/AboutService.h', 
+                                                                    '$ABOUT_BASE/inc/alljoyn/about/PropertyStore.h'])
+
+# Source library
+source_srcs = env.Glob('Source/Library/jni/*.cc')
+source_objs = env.SharedObject(source_srcs)
+libeasy_alljoyn_audio_service = bdenv.SharedLibrary('easy_alljoyn_audio_service', source_objs)
+returnValue += env.Install('$AUDIO_JAVA_DISTDIR/lib', libeasy_alljoyn_audio_service)
+
+alljoynaudioservicelibrary_classes = env.Java('$CLASSDIR', source = ['Source/Library/src'], JAVACLASSPATH=env.subst('$JAVACLASSPATH'))
+returnValue += env.Jar('$JARDIR/alljoynaudioservicelibrary.jar', source = [alljoynaudioservicelibrary_classes])
+
+# Source sample
+returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples/Source/Library/bin', '$JARDIR/alljoynaudioservicelibrary.jar')
+returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples/Source/Library/libs/%s' % android_eabi, '$AUDIO_JAVA_DISTDIR/lib/libeasy_alljoyn_audio_service.so')
+
+#returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples', 'README.txt')
+
+Return('returnValue')

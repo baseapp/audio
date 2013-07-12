@@ -19,6 +19,7 @@
 #include "../Sink.h"
 #include "../Clock.h"
 #include <qcc/Debug.h>
+#include <qcc/Mutex.h>
 #include <malloc.h>
 #include <math.h>
 #include <stdlib.h>
@@ -35,7 +36,7 @@ namespace services {
 
 AndroidDevice::AndroidDevice() :
     mMute(false), mVolumeValue(100), mSLEngineObject(NULL), mOutputMixObject(NULL), mBufferQueuePlayerObject(NULL),
-    mPlay(NULL), mBufferQueue(NULL), mNumberOfFrames(0), mBuffersAvailable(2), mBufferIndex(0)
+    mPlay(NULL), mBufferQueue(NULL), mNumberOfFrames(0), mBuffersAvailable(2), mBufferIndex(0), mListenersMutex(new qcc::Mutex())
 {
     mBufferMutex = new qcc::Mutex();
     mAudioBuffers = new uint8_t *[NUM_BUFFERS];
@@ -231,6 +232,8 @@ AndroidDevice::~AndroidDevice()
     }
     delete[] mAudioBuffers;
     mAudioBuffers = NULL;
+
+    delete mListenersMutex;
 }
 
 bool AndroidDevice::Pause()
@@ -319,14 +322,14 @@ bool AndroidDevice::SetMute(bool mute)
     SLresult result = (*mVolume)->SetMute(mVolume, mute ? SL_BOOLEAN_TRUE : SL_BOOLEAN_FALSE);
     if (result == SL_RESULT_SUCCESS) {
         mMute = mute;
-        mListenersMutex.Lock();
+        mListenersMutex->Lock();
         AndroidDevice::Listeners::iterator it = mListeners.begin();
         while (it != mListeners.end()) {
             AudioDeviceListener* listener = *it;
             listener->MuteChanged(mute);
             it = mListeners.upper_bound(listener);
         }
-        mListenersMutex.Unlock();
+        mListenersMutex->Unlock();
     }
     return result == SL_RESULT_SUCCESS;
 }
@@ -374,14 +377,14 @@ bool AndroidDevice::SetVolume(int16_t newVolume)
     result = (*mVolume)->SetVolumeLevel(mVolume, mNewVolume);
     if (SL_RESULT_SUCCESS == result) {
         if (oldVolume != newVolume) {
-            mListenersMutex.Lock();
+            mListenersMutex->Lock();
             AndroidDevice::Listeners::iterator it = mListeners.begin();
             while (it != mListeners.end()) {
                 AudioDeviceListener* listener = *it;
                 listener->VolumeChanged(mNewVolume);
                 it = mListeners.upper_bound(listener);
             }
-            mListenersMutex.Unlock();
+            mListenersMutex->Unlock();
         }
         return true;
     }
@@ -390,18 +393,18 @@ bool AndroidDevice::SetVolume(int16_t newVolume)
 
 void AndroidDevice::AddListener(AudioDeviceListener* listener)
 {
-    mListenersMutex.Lock();
+    mListenersMutex->Lock();
     mListeners.insert(listener);
-    mListenersMutex.Unlock();
+    mListenersMutex->Unlock();
 }
 
 void AndroidDevice::RemoveListener(AudioDeviceListener* listener)
 {
-    mListenersMutex.Lock();
+    mListenersMutex->Lock();
     Listeners::iterator it = mListeners.find(listener);
     if (it != mListeners.end())
         mListeners.erase(it);
-    mListenersMutex.Unlock();
+    mListenersMutex->Unlock();
 }
 
 }

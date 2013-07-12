@@ -22,8 +22,6 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 
 public class AllJoynAudioService extends Service{
-	private static final String TAG = "IoEAudioStreamingPlayer";
-	
 	private BusHandler mBusHandler;
 	
 	@Override

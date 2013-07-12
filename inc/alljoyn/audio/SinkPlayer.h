@@ -28,10 +28,14 @@
 
 #include <alljoyn/audio/DataSource.h>
 #include <alljoyn/BusAttachment.h>
-#include <qcc/Mutex.h>
-#include <qcc/Thread.h>
 #include <list>
 #include <map>
+#include <set>
+
+namespace qcc {
+class Mutex;
+class Thread;
+}
 
 namespace ajn {
 namespace services {
@@ -318,12 +322,12 @@ class SinkPlayer : public ajn::MessageReceiver {
 
   private:
 
-    static qcc::ThreadReturn AddSinkThread(void* arg);
-    static qcc::ThreadReturn EmitAudioThread(void* arg);
+    static void* AddSinkThread(void* arg);
+    static void* EmitAudioThread(void* arg);
 
     bool RemoveSink(const char* name, bool lost);
     bool RemoveSink(ajn::SessionId sessionId, bool lost);
-    static qcc::ThreadReturn RemoveSinkThread(void* arg);
+    static void* RemoveSinkThread(void* arg);
 
     void FlushReplyHandler(ajn::Message& msg, void* context);
     void MuteChangedSignalHandler(const ajn::InterfaceDescription::Member* member, const char* sourcePath, ajn::Message& msg);
@@ -332,14 +336,14 @@ class SinkPlayer : public ajn::MessageReceiver {
     QStatus CloseSink(SinkInfo* si, bool lost = false);
     void FreeSinkInfo(SinkInfo* si);
 
-    static qcc::ThreadReturn SinkListenerThread(void* arg);
+    static void* SinkListenerThread(void* arg);
 
   private:
     typedef std::set<SinkListener*> SinkListeners;
     typedef std::map<qcc::String, qcc::Thread*> ThreadMap;
 
     SignallingObject* mSignallingObject;
-    qcc::Mutex mSinkListenersMutex;
+    qcc::Mutex* mSinkListenersMutex;
     SinkSessionListener* mSessionListener;
     ajn::BusAttachment* mMsgBus;
     char* mPreferredFormat;
@@ -348,13 +352,13 @@ class SinkPlayer : public ajn::MessageReceiver {
     ajn::MsgArg mChannelsArg;
     ajn::MsgArg mRateArg;
     ajn::MsgArg mFormatArg;
-    qcc::Mutex mSinksMutex;
+    qcc::Mutex* mSinksMutex;
     std::list<SinkInfo> mSinks;
-    qcc::Mutex mAddThreadsMutex;
+    qcc::Mutex* mAddThreadsMutex;
     ThreadMap mAddThreads;
-    qcc::Mutex mRemoveThreadsMutex;
+    qcc::Mutex* mRemoveThreadsMutex;
     ThreadMap mRemoveThreads;
-    qcc::Mutex mEmitThreadsMutex;
+    qcc::Mutex* mEmitThreadsMutex;
     ThreadMap mEmitThreads;
     PlayerState::Type mState;
     SinkListeners mSinkListeners;

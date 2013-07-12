@@ -48,7 +48,6 @@ public class UIHelper {
     
     private AllJoynAudioServiceMediaPlayer mMediaPlayer;
     private boolean mWasPaused = false;
-    private boolean mIsNewSongSelected = false;
     
     private SinkSelectDialog mSinkSelectDialog;
     private List<String> mSongFileList = new ArrayList<String>();
@@ -128,7 +127,6 @@ public class UIHelper {
 				view.setBackgroundColor(Color.parseColor("#99555555"));
 				mPrevSelectedSong = view;
 				mSelectedDataSource = mSongFileList.get(position);
-				mIsNewSongSelected = true;
 				boolean isPlaying = mMediaPlayer.isPlaying();
 				setupSong();
 				if(isPlaying)
