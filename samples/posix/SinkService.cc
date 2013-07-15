@@ -72,7 +72,7 @@ class AboutStore : public PropertyStore {
             static const char* supportedLanguages[] = { "en" };
             props[7].Set("{sv}", "SupportedLanguages", new MsgArg("as", 1, supportedLanguages));
             props[8].Set("{sv}", "Description", new MsgArg("s", "AllJoyn Audio Sink"));
-            props[9].Set("{sv}", "SoftwareVersion", new MsgArg("s", "v0.0.1"));
+            props[9].Set("{sv}", "SoftwareVersion", new MsgArg("s", "v1.0.0"));
             props[10].Set("{sv}", "AJSoftwareVersion", new MsgArg("s", ajn::GetVersion()));
         }
 

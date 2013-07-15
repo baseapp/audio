@@ -121,7 +121,7 @@ if env['OS_CONF'] == 'android':
     # AllJoyn Audio Java binding docs
     env['PROJECT_SHORT_NAME'] = 'AllJoyn Audio Java API<br/>Reference Manual'
     env['PROJECT_LONG_NAME'] = 'AllJoyn Audio Java API Reference Manual'
-    env['PROJECT_NUMBER'] = 'Version 0.0.1'
+    env['PROJECT_NUMBER'] = 'Version 1.0.0'
     env['PROJECT_COPYRIGHT'] = "Copyright &copy; 2013 Qualcomm Innovation Center, Inc.<br/>This document is licensed under a Creative Commons Attribution-Share Alike 3.0 Unported License; provided,<br/>that (i) any source code incorporated in this document is licensed as detailed in the file NOTICE.txt<br/>and (ii) <b>THIS DOCUMENT AND ALL INFORMATION CONTAIN HEREIN ARE PROVIDED ON AN \"AS-IS\" BASIS WITHOUT WARRANTY OF ANY KIND</b>.<br/><a href='http://creativecommons.org/licenses/by-sa/3.0'>Creative Commons Attribution-Share Alike 3.0 Unported License</a><br/><b>MAY CONTAIN U.S. AND INTERNATIONAL EXPORT CONTROLLED INFORMATION</b>"
     env.JavaDoc('$AUDIO_JAVA_DISTDIR/docs/html', 'samples/android/Source/Library/src', JAVACLASSPATH = env.subst('$JAVACLASSPATH'))
 
