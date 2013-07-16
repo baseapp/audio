@@ -1,8 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 
 # AllJoyn specifics
-ALLJOYN_DIST := ../../../../build/android/arm/$(APP_OPTIM)/dist
-AUDIO_DIST := ../../../../build/android/arm/$(APP_OPTIM)/dist/audio
+ALLJOYN_DIST := /alljoyn/alljoyn-3.3.0-android-sdk-rel
+AUDIO_DIST := /alljoyn/alljoyn-audio-1.0.0-android-sdk-rel
 
 include $(CLEAR_VARS)
 
