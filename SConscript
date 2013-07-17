@@ -83,12 +83,12 @@ returnValue += env.SConscript('$OBJDIR/samples/SConscript')
 # Release notes and misc. legals
 if env['OS_CONF'] == 'linux':
     returnValue += env.InstallAs('$AUDIO_DISTDIR/README.txt', 'docs/README.linux.txt')
-    #returnValue += env.Install('$AUDIO_DISTDIR', 'docs/ReleaseNotes.txt')
+    returnValue += env.Install('$AUDIO_DISTDIR', 'docs/ReleaseNotes.txt')
     returnValue += env.Install('$AUDIO_DISTDIR', 'README.md')
     returnValue += env.Install('$AUDIO_DISTDIR', 'NOTICE.txt')
 elif env['OS_CONF'] == 'android':
     returnValue += env.InstallAs('$AUDIO_DISTDIR/README.txt', 'docs/README.android.txt')
-    #returnValue += env.Install('$AUDIO_DISTDIR', 'docs/ReleaseNotes.txt')
+    returnValue += env.Install('$AUDIO_DISTDIR', 'docs/ReleaseNotes.txt')
     returnValue += env.Install('$AUDIO_DISTDIR', 'README.md')
     returnValue += env.Install('$AUDIO_DISTDIR', 'NOTICE.txt')
 
