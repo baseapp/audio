@@ -27,8 +27,6 @@ The contents of each top level folder are further arranged into sub-folders:
 cpp/    core AllJoyn Audio functionality, implemented in C++
         ----------------------------------------------------
 
-    bin/samples/                pre-built sample programs
-
     docs/html/                  AllJoyn Audio API documentation
 
     inc/alljoyn/audio           AllJoyn Audio (C++) headers
@@ -36,8 +34,6 @@ cpp/    core AllJoyn Audio functionality, implemented in C++
     lib/                        AllJoyn Audio (C++) client libraries
 
         liballjoyn_audio.a      implements audio API
-
-    samples/                    C++ sample programs (see README)
 
 
         ---------------------
