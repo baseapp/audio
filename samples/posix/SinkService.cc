@@ -126,7 +126,7 @@ static int usage(const char* name) {
 
 /* Main entry point */
 int main(int argc, char** argv, char** envArg) {
-    if (argc > 3)
+    if (argc > 4)
         return usage(argv[0]);
     const char* deviceName = "default";
     const char* mixerName = "default";
