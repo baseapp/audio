@@ -552,7 +552,7 @@ ThreadReturn AudioSinkObject::AudioOutputThread(void* arg) {
 
         if (apo->mBuffers.empty()) {
             didUnderrun = true;
-            QCC_DbgHLPrintf(("Buffer underrun at %" PRIu64, apo->mStream->GetCurrentTimeNanos()));
+            QCC_LogError(ER_WARNING, ("Buffer underrun at %" PRIu64, apo->mStream->GetCurrentTimeNanos()));
 
             apo->mAudioOutputEvent->ResetEvent();
             apo->mBufferMutex.Unlock();
@@ -617,7 +617,7 @@ ThreadReturn AudioSinkObject::AudioOutputThread(void* arg) {
             uint64_t now = apo->mStream->GetCurrentTimeNanos();
             if (ts.timestamp > now) {
                 uint64_t diff = ts.timestamp - now;
-                QCC_DbgHLPrintf(("Resync, sleeping for %" PRIu64 " nanos until %" PRIu64, diff, ts.timestamp));
+                QCC_LogError(ER_WARNING, ("Resync, sleeping for %" PRIu64 " nanos until %" PRIu64, diff, ts.timestamp));
                 SleepNanos(diff);
             } else {
                 QCC_LogError(ER_WARNING, ("Encountered outdated chunk for resync"));
