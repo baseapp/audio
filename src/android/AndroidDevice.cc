@@ -334,7 +334,8 @@ bool AndroidDevice::SetMute(bool mute)
     return result == SL_RESULT_SUCCESS;
 }
 
-bool AndroidDevice::GetVolumeRange(int16_t& low, int16_t& high, int16_t& step) {
+bool AndroidDevice::GetVolumeRange(int16_t& low, int16_t& high, int16_t& step)
+{
     if (!mVolume)
         return false;
 
@@ -371,17 +372,17 @@ bool AndroidDevice::SetVolume(int16_t newVolume)
         return false;
 
     SLresult result;
-    SLmillibel mNewVolume = newVolume;
+    SLmillibel mB = newVolume;
     int16_t oldVolume = 0;
     GetVolume(oldVolume);
-    result = (*mVolume)->SetVolumeLevel(mVolume, mNewVolume);
+    result = (*mVolume)->SetVolumeLevel(mVolume, mB);
     if (SL_RESULT_SUCCESS == result) {
         if (oldVolume != newVolume) {
             mListenersMutex->Lock();
             AndroidDevice::Listeners::iterator it = mListeners.begin();
             while (it != mListeners.end()) {
                 AudioDeviceListener* listener = *it;
-                listener->VolumeChanged(mNewVolume);
+                listener->VolumeChanged(mB);
                 it = mListeners.upper_bound(listener);
             }
             mListenersMutex->Unlock();
