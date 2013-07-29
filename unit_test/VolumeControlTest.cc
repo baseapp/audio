@@ -397,7 +397,7 @@ TEST_F(VolumeControlTest, IndependenceOfMuteAndVolume) {
     int16_t low, high;
     EXPECT_EQ(GetVolumeRange(port, low, high), ER_OK);
 
-    int16_t volume = (high - low) / 2, currentVol = low, newVol = low + 1;
+    int16_t volume = ((high - low) / 2) + low, currentVol = low, newVol = low + 1;
     EXPECT_EQ(ER_OK, SetVolume(port, volume));
     EXPECT_EQ(ER_OK, GetVolume(port, currentVol));
     EXPECT_EQ(volume, currentVol);
@@ -447,9 +447,10 @@ TEST_F(VolumeControlTest, AdjustVolume) {
     int16_t delta = 2;
 
     EXPECT_EQ(ER_OK, GetVolume(port, volume));
-    EXPECT_EQ(ER_OK, AdjustVolume(port, delta));
+    int16_t adjustment = (volume + delta < high) ? delta : -delta;
+    EXPECT_EQ(ER_OK, AdjustVolume(port, adjustment));
     EXPECT_EQ(ER_OK, WaitForVolumeChanged(AudioTest::sTimeout));
-    EXPECT_NEAR(volume + delta, GetVolumeChange(), 2 * delta);
+    EXPECT_NEAR(volume + adjustment, GetVolumeChange(), 2 * delta);
 
     EXPECT_EQ(ER_OK, AdjustVolume(port, delta * -1));
     EXPECT_EQ(ER_OK, WaitForVolumeChanged(AudioTest::sTimeout));
