@@ -31,6 +31,12 @@
 namespace ajn {
 namespace services {
 
+namespace audio {
+const char* GetVersion();               /**< Gives the version of AllJoyn audio */
+const char* GetBuildInfo();             /**< Gives build information of AllJoyn audio */
+uint32_t GetNumericVersion();           /**< Gives the version of AllJoyn audio as a single number */
+}
+
 extern const char* MIMETYPE_AUDIO_RAW; /**< The media type of a raw (PCM) audio port capability. */
 extern const char* MIMETYPE_AUDIO_ALAC; /**< The media type of an ALAC encoded audio port capability. */
 

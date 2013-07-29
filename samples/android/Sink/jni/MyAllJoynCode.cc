@@ -17,6 +17,7 @@
 #include "MyAllJoynCode.h"
 #include <sys/system_properties.h>
 #include "Constants.h"
+#include <alljoyn/audio/Audio.h>
 #include <alljoyn/audio/android/AndroidDevice.h>
 #include <alljoyn/version.h>
 
@@ -72,6 +73,11 @@ class AboutStore : public ajn::services::PropertyStore {
 
 void MyAllJoynCode::initialize(const char* packageName) {
     QStatus status = ER_OK;
+
+    LOGI("AllJoyn Library version: %s", ajn::GetVersion());
+    LOGI("AllJoyn Library build info: %s", ajn::GetBuildInfo());
+    LOGI("AllJoyn Audio version: %s", ajn::services::audio::GetVersion());
+    LOGI("AllJoyn Audio build info: %s", ajn::services::audio::GetBuildInfo());
 
     /* Initialize AllJoyn only once */
     if (!mBusAttachment) {

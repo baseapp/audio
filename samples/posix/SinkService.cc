@@ -14,6 +14,7 @@
  *    limitations under the license.
  ******************************************************************************/
 
+#include <alljoyn/audio/Audio.h>
 #include <alljoyn/audio/StreamObject.h>
 #if defined(QCC_OS_ANDROID)
 #include <alljoyn/audio/android/AndroidDevice.h>
@@ -151,6 +152,8 @@ int main(int argc, char** argv, char** envArg) {
 
     printf("AllJoyn Library version: %s\n", ajn::GetVersion());
     printf("AllJoyn Library build info: %s\n", ajn::GetBuildInfo());
+    printf("AllJoyn Audio version: %s\n", ajn::services::audio::GetVersion());
+    printf("AllJoyn Audio build info: %s\n", ajn::services::audio::GetBuildInfo());
 
     const char* connectArgs = getenv("BUS_ADDRESS");
     if (connectArgs == NULL)
