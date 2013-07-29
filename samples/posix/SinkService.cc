@@ -85,12 +85,12 @@ class AboutStore : public PropertyStore {
     const char* mFriendlyName;
 };
 
-class MyBusListener : public BusListener, public SessionPortListener {
+class MyAllJoynListener : public SessionPortListener {
   private:
     BusAttachment* mMsgBus;
 
   public:
-    MyBusListener(BusAttachment* msgBus) {
+    MyAllJoynListener(BusAttachment* msgBus) {
         mMsgBus = msgBus;
     }
 
@@ -157,13 +157,7 @@ int main(int argc, char** argv, char** envArg) {
         connectArgs = "unix:abstract=alljoyn";
 
     BusAttachment* msgBus = new BusAttachment("SinkService", true);
-
-    MyBusListener* busListener = NULL;
-    if (status == ER_OK) {
-        /* Register a bus listener */
-        busListener = new MyBusListener(msgBus);
-        msgBus->RegisterBusListener(*busListener);
-    }
+    MyAllJoynListener* listener = new MyAllJoynListener(msgBus);
 
     AudioDevice* audioDevice = NULL;
     AboutStore* aboutProps = NULL;
@@ -201,7 +195,7 @@ int main(int argc, char** argv, char** envArg) {
     SessionPort sessionPort = SESSION_PORT_ANY;
     SessionOpts opts(SessionOpts::TRAFFIC_MESSAGES, false, SessionOpts::PROXIMITY_ANY, TRANSPORT_ANY);
     if (status == ER_OK) {
-        status = msgBus->BindSessionPort(sessionPort, opts, *busListener);
+        status = msgBus->BindSessionPort(sessionPort, opts, *listener);
         if (status != ER_OK)
             fprintf(stderr, "BindSessionPort failed (%s)\n", QCC_StatusText(status));
     }
@@ -244,8 +238,8 @@ int main(int argc, char** argv, char** envArg) {
     aboutProps = NULL;
     delete msgBus;
     msgBus = NULL;
-    delete busListener;
-    busListener = NULL;
+    delete listener;
+    listener = NULL;
 
     return (int)status;
 }

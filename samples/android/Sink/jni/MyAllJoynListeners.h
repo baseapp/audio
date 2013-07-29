@@ -26,7 +26,7 @@
 
 using namespace ajn;
 
-class MyAllJoynListeners : public BusListener, public SessionPortListener, public SessionListener {
+class MyAllJoynListeners : public SessionPortListener {
   public:
     MyAllJoynListeners(BusAttachment* bus) : mBusAttachment(bus) { };
 
@@ -34,7 +34,6 @@ class MyAllJoynListeners : public BusListener, public SessionPortListener, publi
         mBusAttachment = NULL;
     };
 
-    /* From SessionPortListener */
     virtual bool AcceptSessionJoiner(SessionPort sessionPort, const char* joiner, const SessionOpts& opts);
 
     virtual void SessionJoined(SessionPort sessionPort, SessionId id, const char* joiner);

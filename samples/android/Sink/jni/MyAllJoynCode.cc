@@ -93,7 +93,6 @@ void MyAllJoynCode::initialize(const char* packageName) {
         if (!listener) {
             listener = new MyAllJoynListeners(mBusAttachment);
         }
-        mBusAttachment->RegisterBusListener(*listener);
 
         char deviceFriendlyName[PROP_VALUE_MAX];
         __system_property_get("ro.product.board", deviceFriendlyName);
