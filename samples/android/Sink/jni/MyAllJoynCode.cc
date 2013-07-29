@@ -101,7 +101,7 @@ void MyAllJoynCode::initialize(const char* packageName) {
         mAdvertisedName = mBusAttachment->GetUniqueName();
 
         mAudioDevice = new AndroidDevice();
-        SessionOpts opts(SessionOpts::TRAFFIC_MESSAGES, true, SessionOpts::PROXIMITY_ANY, TRANSPORT_ANY);
+        SessionOpts opts(SessionOpts::TRAFFIC_MESSAGES, false, SessionOpts::PROXIMITY_ANY, TRANSPORT_ANY);
         SessionPort port = SESSION_PORT_ANY;
         status = mBusAttachment->BindSessionPort(port, opts, *listener);
         if (ER_OK != status) {
