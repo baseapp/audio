@@ -250,6 +250,29 @@ class TestFixture {
         return port->MethodCall(PORT_INTERFACE, "Connect", connectArgs, 3, reply);
     }
 
+    QStatus SetTime(ProxyBusObject* stream) {
+        int64_t diffTime = 0;
+        for (int i = 0; i < 5; i++) {
+            uint64_t time = GetCurrentTimeNanos();
+            MsgArg setTimeArgs[1];
+            setTimeArgs[0].Set("t", time);
+            Message setTimeReply(*mMsgBus);
+            QStatus status = stream->MethodCall(CLOCK_INTERFACE, "SetTime", setTimeArgs, 1, setTimeReply);
+            if (ER_OK != status) {
+                return status;
+            }
+            uint64_t newTime = GetCurrentTimeNanos();
+            diffTime = (newTime - time) / 2;
+            if (diffTime < 10000000)
+                break;
+            SleepNanos(1000000000);
+        }
+        MsgArg adjustTimeArgs[1];
+        adjustTimeArgs[0].Set("x", diffTime);
+        Message adjustTimeReply(*mMsgBus);
+        return stream->MethodCall(CLOCK_INTERFACE, "AdjustTime", adjustTimeArgs, 1, adjustTimeReply);
+    }
+
     void RegisterSignalHandler(const char* path) {
 
         signalHandler = new TestSignalHandler(mMsgBus, path, mSessionId);
@@ -381,6 +404,7 @@ class StreamTest : public testing::Test {
         return mFixture->SetRawCapability(capability, channels, sampleRate, format);
     }
     QStatus ConfigurePort(ProxyBusObject* port, Capability* capability) { return mFixture->ConfigurePort(port, capability); }
+    QStatus SetTime(ProxyBusObject* stream) { return mFixture->SetTime(stream); }
     void RegisterSignalHandler(const char* path) { return mFixture->RegisterSignalHandler(path); }
     QStatus SendSilentAudio(uint32_t totalLength, uint8_t channels, uint32_t sampleRate) {
         return mFixture->SendSilentAudio(totalLength, channels, sampleRate);
@@ -640,6 +664,8 @@ TEST_F(StreamTest, PlaybackStarts) {
     Capability capability;
     SetRawCapability(capability, DEFAULT_CHANNELS, DEFAULT_SAMPLERATE);
     EXPECT_EQ(ConfigurePort(port, &capability), ER_OK);
+
+    EXPECT_EQ(SetTime(stream), ER_OK);
 
     RegisterSignalHandler(port->GetPath().c_str());
 
