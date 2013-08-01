@@ -933,7 +933,7 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
 
             uint64_t now = GetCurrentTimeNanos();
             if (si->timestamp < now) {
-                QCC_DbgHLPrintf(("Skipping emit of audio that's outdated by %" PRIu64 " nanos", now - si->timestamp));
+                QCC_LogError(ER_WARNING, ("Skipping emit of audio that's outdated by %" PRIu64 " nanos", now - si->timestamp));
             } else {
                 sp->mSignallingObject->EmitAudioDataSignal(si->sessionId, buffer, numBytesToEmit, si->timestamp);
                 QCC_DbgTrace(("%d: timestamp %" PRIu64 " numBytes %d bytesPerSecond %d", si->sessionId, si->timestamp, numBytes, bytesPerSecond));
