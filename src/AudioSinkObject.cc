@@ -628,6 +628,7 @@ ThreadReturn AudioSinkObject::AudioOutputThread(void* arg) {
                 apo->mBufferMutex.Unlock();
                 continue;
             }
+            QCC_DbgHLPrintf(("Resync finished\n"));
             ts.resync = false;
         }
 

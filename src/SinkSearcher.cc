@@ -125,6 +125,7 @@ QStatus SinkSearcher::Register(BusAttachment* bus) {
     if (status != ER_OK)
         QCC_LogError(status, ("CreateInterfacesFromXml failed"));
 
+    QCC_DbgHLPrintf(("Searching for sinks"));
     if (status == ER_OK) {
         status = bus->RegisterSignalHandler(this,
                                             static_cast<MessageReceiver::SignalHandler>(&SinkSearcher::OnAnnounce),

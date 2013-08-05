@@ -386,6 +386,7 @@ ThreadReturn SinkPlayer::AddSinkThread(void* arg) {
     SinkInfo si;
     memset(&si, 0, sizeof(si));
 
+    QCC_DbgHLPrintf(("Joining session to %s", asi->name));
     SessionId sessionId;
     SessionOpts opts(SessionOpts::TRAFFIC_MESSAGES, false, SessionOpts::PROXIMITY_ANY, TRANSPORT_ANY);
     QStatus status = sp->mMsgBus->JoinSession(asi->name, asi->port, sp->mSessionListener, sessionId, opts);
@@ -587,9 +588,9 @@ bool SinkPlayer::OpenSink(const char* name) {
     Message adjustTimeReply(*mMsgBus);
     status = si->streamObj->MethodCall(CLOCK_INTERFACE, "AdjustTime", adjustTimeArgs, 1, adjustTimeReply);
     if (ER_OK == status) {
-        QCC_DbgHLPrintf(("Port.AdjustTime(%" PRId64 ") success", diffTime));
+        QCC_DbgHLPrintf(("Port.AdjustTime(%" PRId64 ") with %s succeeded", diffTime, si->serviceName));
     } else {
-        QCC_LogError(status, ("Port.AdjustTime() failed"));
+        QCC_LogError(status, ("Port.AdjustTime() with %s failed", si->serviceName));
         return false;
     }
 
@@ -1082,20 +1083,26 @@ bool SinkPlayer::Pause() {
 }
 
 bool SinkPlayer::GetVolumeRange(const char* name, int16_t& low, int16_t& high, int16_t& step) {
+    uint64_t begin, end;
     bool success = false;
     mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
         SinkInfo* si = &(*it);
         MsgArg reply;
+        begin = GetCurrentTimeNanos();
         QStatus status = si->portObj->GetProperty(VOLUME_INTERFACE, "VolumeRange", reply);
+        end = GetCurrentTimeNanos();
         if (status == ER_OK) {
             status = reply.Get("(nnn)", &low, &high, &step);
         }
-        if (status != ER_OK) {
+        if (status == ER_OK) {
+            success = true;
+            QCC_DbgHLPrintf(("Get volume range took %" PRIu64 " ns", end - begin));
+        } else {
+            success = false;
             QCC_LogError(status, ("Get volume range error"));
         }
-        success = (status == ER_OK);
     }
     mSinksMutex->Unlock();
 
@@ -1103,20 +1110,26 @@ bool SinkPlayer::GetVolumeRange(const char* name, int16_t& low, int16_t& high, i
 }
 
 bool SinkPlayer::GetVolume(const char* name, int16_t& volume) {
+    uint64_t begin, end;
     bool success = false;
     mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
         SinkInfo* si = &(*it);
         MsgArg reply;
+        begin = GetCurrentTimeNanos();
         QStatus status = si->portObj->GetProperty(VOLUME_INTERFACE, "Volume", reply);
+        end = GetCurrentTimeNanos();
         if (status == ER_OK) {
             status = reply.Get("n", &volume);
         }
-        if (status != ER_OK) {
+        if (status == ER_OK) {
+            success = true;
+            QCC_DbgHLPrintf(("Get volume took %" PRIu64 " ns", end - begin));
+        } else {
+            success = false;
             QCC_LogError(status, ("Get volume error"));
         }
-        success = (status == ER_OK);
     }
     mSinksMutex->Unlock();
 
@@ -1124,16 +1137,23 @@ bool SinkPlayer::GetVolume(const char* name, int16_t& volume) {
 }
 
 bool SinkPlayer::SetVolume(const char* name, int16_t volume) {
+    uint64_t begin, end;
     bool success = false;
     mSinksMutex->Lock();
     std::list<SinkInfo>::iterator it = find_if(mSinks.begin(), mSinks.end(), FindSink(name));
     if (it != mSinks.end()) {
         SinkInfo* si = &(*it);
         MsgArg arg("n", volume);
+        begin = GetCurrentTimeNanos();
         QStatus status = si->portObj->SetProperty(VOLUME_INTERFACE, "Volume", arg);
-        if (status != ER_OK)
+        end = GetCurrentTimeNanos();
+        if (status == ER_OK) {
+            success = true;
+            QCC_DbgHLPrintf(("Set volume took %" PRIu64 " ns", end - begin));
+        } else {
+            success = false;
             QCC_LogError(status, ("Set volume error"));
-        success = (status == ER_OK);
+        }
     }
     mSinksMutex->Unlock();
 
@@ -1141,6 +1161,7 @@ bool SinkPlayer::SetVolume(const char* name, int16_t volume) {
 }
 
 bool SinkPlayer::GetMute(const char* name, bool& mute) {
+    uint64_t begin, end;
     bool success = false;
     mSinksMutex->Lock();
     if (name) {
@@ -1148,14 +1169,19 @@ bool SinkPlayer::GetMute(const char* name, bool& mute) {
         if (it != mSinks.end()) {
             SinkInfo* si = &(*it);
             MsgArg reply;
+            begin = GetCurrentTimeNanos();
             QStatus status = si->portObj->GetProperty(VOLUME_INTERFACE, "Mute", reply);
+            end = GetCurrentTimeNanos();
             if (status == ER_OK) {
                 status = reply.Get("b", &mute);
             }
-            if (status != ER_OK) {
+            if (status == ER_OK) {
+                success = true;
+                QCC_DbgHLPrintf(("Get mute took %" PRIu64 " ns", end - begin));
+            } else {
+                success = false;
                 QCC_LogError(status, ("Get mute error"));
             }
-            success = (status == ER_OK);
         }
     } else if (!mSinks.empty()) {
         success = true;
@@ -1164,12 +1190,15 @@ bool SinkPlayer::GetMute(const char* name, bool& mute) {
             SinkInfo* si = &(*it);
             bool m;
             MsgArg reply;
+            begin = GetCurrentTimeNanos();
             QStatus status = si->portObj->GetProperty(VOLUME_INTERFACE, "Mute", reply);
+            end = GetCurrentTimeNanos();
             if (status == ER_OK) {
                 status = reply.Get("b", &m);
             }
             if (status == ER_OK) {
                 mute = mute && m;
+                QCC_DbgHLPrintf(("Get mute took %" PRIu64 " ns", end - begin));
             } else {
                 success = false;
                 QCC_LogError(status, ("Get mute error"));
@@ -1182,6 +1211,7 @@ bool SinkPlayer::GetMute(const char* name, bool& mute) {
 }
 
 bool SinkPlayer::SetMute(const char* name, bool mute) {
+    uint64_t begin, end;
     bool success = false;
     mSinksMutex->Lock();
     if (name) {
@@ -1189,8 +1219,14 @@ bool SinkPlayer::SetMute(const char* name, bool mute) {
         if (it != mSinks.end()) {
             SinkInfo* si = &(*it);
             MsgArg arg("b", mute);
+            begin = GetCurrentTimeNanos();
             QStatus status = si->portObj->SetProperty(VOLUME_INTERFACE, "Mute", arg);
-            if (status != ER_OK) {
+            end = GetCurrentTimeNanos();
+            if (status == ER_OK) {
+                success = true;
+                QCC_DbgHLPrintf(("Set mute took %" PRIu64 " ns", end - begin));
+            } else {
+                success = false;
                 QCC_LogError(status, ("Set mute error"));
             }
             success = (status == ER_OK);
@@ -1200,8 +1236,12 @@ bool SinkPlayer::SetMute(const char* name, bool mute) {
         for (std::list<SinkInfo>::iterator it = mSinks.begin(); it != mSinks.end(); ++it) {
             SinkInfo* si = &(*it);
             MsgArg arg("b", mute);
+            begin = GetCurrentTimeNanos();
             QStatus status = si->portObj->SetProperty(VOLUME_INTERFACE, "Mute", arg);
-            if (status != ER_OK) {
+            end = GetCurrentTimeNanos();
+            if (status == ER_OK) {
+                QCC_DbgHLPrintf(("Set mute took %" PRIu64 " ns", end - begin));
+            } else {
                 success = false;
                 QCC_LogError(status, ("Set mute error"));
             }
