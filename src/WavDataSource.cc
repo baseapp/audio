@@ -39,7 +39,7 @@
 namespace ajn {
 namespace services {
 
-WavDataSource::WavDataSource() : mInputFileMutex(new qcc::Mutex()), mInputFile(NULL) {
+WavDataSource::WavDataSource() : DataSource(), mInputFileMutex(new qcc::Mutex()), mInputFile(NULL) {
 }
 
 WavDataSource::~WavDataSource() {

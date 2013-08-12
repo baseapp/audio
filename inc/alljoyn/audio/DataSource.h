@@ -71,6 +71,12 @@ class DataSource {
      * @return the number of bytes read.
      */
     virtual size_t ReadData(uint8_t* buffer, size_t offset, size_t length) = 0;
+
+    /**
+     * Used by thread that calls ReadData to ensure a data is ready for reading
+     * @return true if data is ready to read
+     */
+    virtual bool IsDataReady() = 0;
 };
 
 }

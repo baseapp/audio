@@ -71,6 +71,11 @@ class WavDataSource : public DataSource {
 
     size_t ReadData(uint8_t* buffer, size_t offset, size_t length);
 
+    /**
+     * Since we read ondemand from a file always return true that data is ready
+     */
+    bool IsDataReady() { return true; }
+
   private:
     bool ReadHeader();
 

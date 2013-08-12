@@ -872,22 +872,30 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
     uint32_t bytesEmitted = 0;
 
     while (!selfThread->IsStopping() && si->inputDataBytesRemaining > 0 && (bytesEmitted + inputPacketBytes) <= si->fifoSize) {
-        int32_t numBytes = sp->mDataSource->ReadData(readBuffer, sp->mDataSource->GetInputSize() - si->inputDataBytesRemaining, inputPacketBytes);
+        if (sp->mDataSource->IsDataReady()) {
+            int32_t numBytes = sp->mDataSource->ReadData(readBuffer, sp->mDataSource->GetInputSize() - si->inputDataBytesRemaining, inputPacketBytes);
+            if (numBytes == 0) {            //EOF
+                si->inputDataBytesRemaining = 0;
+                break;
+            }
 
-        uint8_t* buffer = readBuffer;
-        uint32_t numBytesToEmit = numBytes;
-        si->encoder->Encode(&buffer, &numBytesToEmit);
+            uint8_t* buffer = readBuffer;
+            uint32_t numBytesToEmit = numBytes;
+            si->encoder->Encode(&buffer, &numBytesToEmit);
 
-        sp->mSignallingObject->EmitAudioDataSignal(si->sessionId, buffer, numBytesToEmit, si->timestamp);
+            sp->mSignallingObject->EmitAudioDataSignal(si->sessionId, buffer, numBytesToEmit, si->timestamp);
 
-        si->timestampMutex.Lock();
-        si->timestamp += (uint64_t)(((double)numBytes / bytesPerSecond) * 1000000000);
-        si->inputDataBytesRemaining -= numBytes;
-        si->timestampMutex.Unlock();
+            si->timestampMutex.Lock();
+            si->timestamp += (uint64_t)(((double)numBytes / bytesPerSecond) * 1000000000);
+            si->inputDataBytesRemaining -= numBytes;
+            si->timestampMutex.Unlock();
 
-        bytesEmitted += numBytes;
+            bytesEmitted += numBytes;
 
-        QCC_DbgTrace(("Emitted %i bytes", numBytes));
+            QCC_DbgTrace(("Emitted %i bytes", numBytes));
+        } else   {     //Sleep for a few milli sec to wait for data ready again
+            usleep(10 * 1000);
+        }
     }
 
     while (!selfThread->IsStopping() && si->inputDataBytesRemaining > 0) {
@@ -925,27 +933,35 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
         bytesEmitted = 0;
         uint32_t bytesToWrite = si->fifoSize - fifoPosition;
 
-        while (si->inputDataBytesRemaining > 0 && (bytesEmitted + inputPacketBytes) <= bytesToWrite) {
-            int32_t numBytes = sp->mDataSource->ReadData(readBuffer, sp->mDataSource->GetInputSize() - si->inputDataBytesRemaining, inputPacketBytes);
+        while (!selfThread->IsStopping() && si->inputDataBytesRemaining > 0 && (bytesEmitted + inputPacketBytes) <= bytesToWrite) {
+            if (sp->mDataSource->IsDataReady()) {
+                int32_t numBytes = sp->mDataSource->ReadData(readBuffer, sp->mDataSource->GetInputSize() - si->inputDataBytesRemaining, inputPacketBytes);
+                if (numBytes == 0) {                //EOF
+                    si->inputDataBytesRemaining = 0;
+                    break;
+                }
 
-            uint8_t* buffer = readBuffer;
-            uint32_t numBytesToEmit = numBytes;
-            si->encoder->Encode(&buffer, &numBytesToEmit);
+                uint8_t* buffer = readBuffer;
+                uint32_t numBytesToEmit = numBytes;
+                si->encoder->Encode(&buffer, &numBytesToEmit);
 
-            uint64_t now = GetCurrentTimeNanos();
-            if (si->timestamp < now) {
-                QCC_LogError(ER_WARNING, ("Skipping emit of audio that's outdated by %" PRIu64 " nanos", now - si->timestamp));
-            } else {
-                sp->mSignallingObject->EmitAudioDataSignal(si->sessionId, buffer, numBytesToEmit, si->timestamp);
-                QCC_DbgTrace(("%d: timestamp %" PRIu64 " numBytes %d bytesPerSecond %d", si->sessionId, si->timestamp, numBytes, bytesPerSecond));
-                bytesEmitted += numBytes;
-                QCC_DbgTrace(("Emitted %i bytes", numBytes));
+                uint64_t now = GetCurrentTimeNanos();
+                if (si->timestamp < now) {
+                    QCC_LogError(ER_WARNING, ("Skipping emit of audio that's outdated by %" PRIu64 " nanos", now - si->timestamp));
+                } else {
+                    sp->mSignallingObject->EmitAudioDataSignal(si->sessionId, buffer, numBytesToEmit, si->timestamp);
+                    QCC_DbgTrace(("%d: timestamp %" PRIu64 " numBytes %d bytesPerSecond %d", si->sessionId, si->timestamp, numBytes, bytesPerSecond));
+                    bytesEmitted += numBytes;
+                    QCC_DbgTrace(("Emitted %i bytes", numBytes));
+                }
+
+                si->timestampMutex.Lock();
+                si->timestamp += (uint64_t)(((double)numBytes / bytesPerSecond) * 1000000000);
+                si->inputDataBytesRemaining -= numBytes;
+                si->timestampMutex.Unlock();
+            } else   {         //Sleep for a few milli sec to wait for data ready again
+                usleep(10 * 1000);
             }
-
-            si->timestampMutex.Lock();
-            si->timestamp += (uint64_t)(((double)numBytes / bytesPerSecond) * 1000000000);
-            si->inputDataBytesRemaining -= numBytes;
-            si->timestampMutex.Unlock();
         }
     }
 
