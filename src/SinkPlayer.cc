@@ -893,7 +893,7 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
             bytesEmitted += numBytes;
 
             QCC_DbgTrace(("Emitted %i bytes", numBytes));
-        } else   {     //Sleep for a few milli sec to wait for data ready again
+        } else {       //Sleep for a few milli sec to wait for data ready again
             usleep(10 * 1000);
         }
     }
@@ -959,7 +959,7 @@ ThreadReturn SinkPlayer::EmitAudioThread(void* arg) {
                 si->timestamp += (uint64_t)(((double)numBytes / bytesPerSecond) * 1000000000);
                 si->inputDataBytesRemaining -= numBytes;
                 si->timestampMutex.Unlock();
-            } else   {         //Sleep for a few milli sec to wait for data ready again
+            } else {           //Sleep for a few milli sec to wait for data ready again
                 usleep(10 * 1000);
             }
         }
