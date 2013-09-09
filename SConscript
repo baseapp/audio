@@ -103,10 +103,15 @@ if env['OS_CONF'] == 'android':
         if not GetOption('help'):
             Exit()
 
-    if not os.environ.get('CLASSPATH'):
+    classpath = os.environ.get('CLASSPATH')
+    if not classpath:
         print "CLASSPATH not set"
         if not GetOption('help'):
             Exit()
+
+    # Set JAVACLASSPATH to contents of CLASSPATH env variable
+    env.AppendENVPath("JAVACLASSPATH", classpath)
+    env['JAVACLASSPATH'] = env['ENV']['JAVACLASSPATH']
 
     # Tell dependent dirs where class and jar files are located
     env.Append(CLASSDIR = '$OBJDIR/classes')

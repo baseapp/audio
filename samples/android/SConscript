@@ -23,15 +23,10 @@ else:
 # The return value is the collection of files installed in the build destination.
 returnValue = []
 
-# Bundled daemon environment to build JNI libs.
-bdenv = env.Clone()
-bdenv.Prepend(LIBS = env['bdlib'])
-bdenv.Prepend(LIBS = env['bdobj'])
-
 # Sink sample
 sink_srcs = env.Glob('Sink/jni/*.cc')
 sink_objs = env.SharedObject(sink_srcs)
-libAllJoynAudioSink = bdenv.SharedLibrary('AllJoynAudioSink', sink_objs)
+libAllJoynAudioSink = env.SharedLibrary('AllJoynAudioSink', sink_objs)
 
 returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples/Sink/libs/%s' % android_eabi, libAllJoynAudioSink)
 returnValue += env.Install('$AUDIO_CPP_DISTDIR/inc/alljoyn/about', ['$ABOUT_BASE/inc/alljoyn/about/AboutService.h', 
@@ -40,7 +35,7 @@ returnValue += env.Install('$AUDIO_CPP_DISTDIR/inc/alljoyn/about', ['$ABOUT_BASE
 # Source library
 source_srcs = env.Glob('Source/Library/jni/*.cc')
 source_objs = env.SharedObject(source_srcs)
-libeasy_alljoyn_audio_service = bdenv.SharedLibrary('easy_alljoyn_audio_service', source_objs)
+libeasy_alljoyn_audio_service = env.SharedLibrary('easy_alljoyn_audio_service', source_objs)
 returnValue += env.Install('$AUDIO_JAVA_DISTDIR/lib', libeasy_alljoyn_audio_service)
 
 alljoynaudioservicelibrary_classes = env.Java('$CLASSDIR', source = ['Source/Library/src'], JAVACLASSPATH=env.subst('$JAVACLASSPATH'))
