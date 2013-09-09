@@ -95,14 +95,14 @@ void MyAllJoynCode::initialize(const char* packageName) {
                 LOGE("BusAttachment Connect failed.");
             }
         }
-        LOGE("Created BusAttachment and connected");
+        LOGD("Created BusAttachment and connected");
         if (!listener) {
             listener = new MyAllJoynListeners(mBusAttachment);
         }
 
         char deviceFriendlyName[PROP_VALUE_MAX];
         __system_property_get("ro.product.board", deviceFriendlyName);
-        LOGE("device friendly name: %s", deviceFriendlyName);
+        LOGI("device friendly name: %s", deviceFriendlyName);
         mAdvertisedName = mBusAttachment->GetUniqueName();
 
         mAudioDevice = new AndroidDevice();
@@ -112,14 +112,14 @@ void MyAllJoynCode::initialize(const char* packageName) {
         if (ER_OK != status) {
             LOGE("BindSessionPort failed");
         } else {
-            LOGE("Bind Session Port to was successful ");
+            LOGD("Bind Session Port to was successful ");
         }
         /* Advertise the name */
         status = mBusAttachment->AdvertiseName(mAdvertisedName.c_str(), opts.transports);
         if (status != ER_OK) {
             LOGE("Failed to advertise name");
         } else {
-            LOGE("Advertisement was successfully advertised");
+            LOGD("Advertisement was successfully advertised");
         }
 
         mAboutProps = new AboutStore("AndroidDevice");

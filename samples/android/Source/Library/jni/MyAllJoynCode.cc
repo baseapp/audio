@@ -39,13 +39,13 @@ void MyAllJoynCode::Prepare(const char* packageName) {
         if (ER_OK == status) {
             status = mBusAttachment->Start();
         } else {
-            LOGD("BusAttachment::Start failed");
+            LOGE("BusAttachment::Start failed");
         }
         /* Connect to the daemon */
         if (ER_OK == status) {
             status = mBusAttachment->Connect();
             if (ER_OK != status) {
-                LOGD("BusAttachment Connect failed.");
+                LOGE("BusAttachment Connect failed.");
             }
         }
         LOGD("Created BusAttachment and connected");
@@ -176,7 +176,7 @@ void MyAllJoynCode::SinkFound(Service*sink) {
     jclass jcls = env->GetObjectClass(jobj);
     jmethodID mid = env->GetMethodID(jcls, "SinkFound", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;S)V");
     if (mid == 0) {
-        LOGD("Failed to get Java SinkFound");
+        LOGE("Failed to get Java SinkFound");
     } else {
         jstring jName = env->NewStringUTF(name);
         jstring jPath = env->NewStringUTF(path);
@@ -203,7 +203,7 @@ void MyAllJoynCode::SinkLost(Service*sink) {
     jclass jcls = env->GetObjectClass(jobj);
     jmethodID mid = env->GetMethodID(jcls, "SinkLost", "(Ljava/lang/String;)V");
     if (mid == 0) {
-        LOGD("Failed to get Java SinkLost");
+        LOGE("Failed to get Java SinkLost");
     } else {
         jstring jName = env->NewStringUTF(name);
         env->CallVoidMethod(jobj, mid, jName);
@@ -229,7 +229,7 @@ void MyAllJoynCode::SinkAdded(const char*name) {
     jclass jcls = env->GetObjectClass(jobj);
     jmethodID mid = env->GetMethodID(jcls, "SinkAdded", "(Ljava/lang/String;)V");
     if (mid == 0) {
-        LOGD("Failed to get Java SinkAdded");
+        LOGE("Failed to get Java SinkAdded");
     } else {
         jstring jName = env->NewStringUTF(name);
         env->CallVoidMethod(jobj, mid, jName);
@@ -251,7 +251,7 @@ void MyAllJoynCode::SinkAddFailed(const char*name) {
     jclass jcls = env->GetObjectClass(jobj);
     jmethodID mid = env->GetMethodID(jcls, "SinkAddFailed", "(Ljava/lang/String;)V");
     if (mid == 0) {
-        LOGD("Failed to get Java SinkAddFailed");
+        LOGE("Failed to get Java SinkAddFailed");
     } else {
         jstring jName = env->NewStringUTF(name);
         env->CallVoidMethod(jobj, mid, jName);
@@ -274,7 +274,7 @@ void MyAllJoynCode::SinkRemoved(const char*name, bool lost) {
     jclass jcls = env->GetObjectClass(jobj);
     jmethodID mid = env->GetMethodID(jcls, "SinkRemoved", "(Ljava/lang/String;Z)V");
     if (mid == 0) {
-        LOGD("Failed to get Java SinkRemoved");
+        LOGE("Failed to get Java SinkRemoved");
     } else {
         jstring jName = env->NewStringUTF(name);
         env->CallVoidMethod(jobj, mid, jName, lost);
