@@ -81,6 +81,9 @@ else:
     if gtest_dir != '/usr':
         unittest_env.Append(CPPPATH = [gtest_dir + '/include'])
 
+    # Unit tests can use private headers
+    unittest_env.Append(CPPPATH = [env.Dir('#src')])
+
     if(env['OS_CONF'] == 'android'):
         # Android include paths
         unittest_env.Append(CPPPATH=['$ANDROID_NDK/platforms/android-$ANDROID_API_LEVEL_NDK/arch-%s/usr/include' % env['CPU'],
