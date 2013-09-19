@@ -12,11 +12,48 @@
 #    See the license for the specific language governing permissions and
 #    limitations under the license.
 
-Import('env')
+import os
 
-# The return value is the collection of files installed in the build destination.
-returnValue = []
+Import('audio_env')
 
-returnValue += env.SConscript(env['OS_GROUP'] + '/SConscript')
+samples_env = audio_env.Clone()
 
-Return ('returnValue')
+samples_env.Prepend(LIBS = ['alljoyn_audio', 'alljoyn_about'])
+
+# AllJoyn Audio Java
+if samples_env['OS_CONF'] == 'android':
+    from configurejni import ConfigureJNI
+    if not ConfigureJNI(samples_env):
+        if not GetOption('help'):
+            Exit()
+
+    classpath = os.environ.get('CLASSPATH')
+    if not classpath:
+        print "CLASSPATH not set"
+        if not GetOption('help'):
+            Exit()
+
+    # Set JAVACLASSPATH to contents of CLASSPATH env variable
+    samples_env.AppendENVPath("JAVACLASSPATH", classpath)
+    samples_env['JAVACLASSPATH'] = samples_env['ENV']['JAVACLASSPATH']
+
+    # Tell dependent dirs where class and jar files are located
+    samples_env.Append(CLASSDIR = '$OBJDIR/classes')
+    samples_env.Append(JARDIR = '$AUDIO_DISTDIR/jar')
+
+    # Sample programs
+    samples_env.Install('$AUDIO_DISTDIR/samples/Source', samples_env.Dir('android/Source/Application').srcnode());
+    samples_env.Install('$AUDIO_DISTDIR/samples/Source', samples_env.Dir('android/Source/Library').srcnode());
+    samples_env.Install('$AUDIO_DISTDIR/samples', samples_env.Dir('android/Sink').srcnode());
+    samples_env.SConscript('android/SConscript', exports = ['samples_env']);
+
+    # AllJoyn Audio Java binding docs
+    samples_env['PROJECT_SHORT_NAME'] = 'AllJoyn Audio Java API<br/>Reference Manual'
+    samples_env['PROJECT_LONG_NAME'] = 'AllJoyn Audio Java API Reference Manual'
+    samples_env['PROJECT_NUMBER'] = 'Version 0.0.1'
+    samples_env['PROJECT_COPYRIGHT'] = "Copyright &copy; 2013 Qualcomm Innovation Center, Inc.<br/>This document is licensed under a Creative Commons Attribution-Share Alike 3.0 Unported License; provided,<br/>that (i) any source code incorporated in this document is licensed as detailed in the file NOTICE.txt<br/>and (ii) <b>THIS DOCUMENT AND ALL INFORMATION CONTAIN HEREIN ARE PROVIDED ON AN \"AS-IS\" BASIS WITHOUT WARRANTY OF ANY KIND</b>.<br/><a href='http://creativecommons.org/licenses/by-sa/3.0'>Creative Commons Attribution-Share Alike 3.0 Unported License</a><br/><b>MAY CONTAIN U.S. AND INTERNATIONAL EXPORT CONTROLLED INFORMATION</b>"
+    samples_env.JavaDoc('$AUDIO_JAVA_DISTDIR/docs/html', 'android/Source/Library/src', JAVACLASSPATH = samples_env.subst('$JAVACLASSPATH'))
+
+else:
+    samples_env.SConscript('$OS_GROUP/SConscript', exports = ['samples_env'])
+

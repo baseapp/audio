@@ -12,39 +12,43 @@
 #    See the license for the specific language governing permissions and
 #    limitations under the license.
 
-Import('env')
+Import('audio_env')
 
 # Sources
-srcs = [ f for f in env.Glob('*.cc') if not (str(f).endswith('version.cc')) ]
+srcs = [ f for f in audio_env.Glob('*.cc') if not (str(f).endswith('version.cc')) ]
 
 # ALAC
-alac_srcs = []
-if(env.has_key('ALAC_BASE')):
-    env.Append(CPPDEFINES = ['WITH_ALAC'])
-    alac_srcs = env.Glob('alac/*.cc')
-    env.Append(CPPFLAGS = ['-Wno-multichar'])
-    env.Append(CPPPATH = ['$ALAC_BASE/codec'])
-    env.Append(LIBPATH = ['$ALAC_BASE/codec']);
-    env.Append(LIBS = ['alac'])
+if audio_env.has_key('ALAC_BASE'):
+    audio_env.Append(CPPDEFINES = ['WITH_ALAC'])
+    srcs += audio_env.Glob('alac/*.cc')
+    audio_env.Append(CPPFLAGS = ['-Wno-multichar'])
+    audio_env.Append(CPPPATH = ['$ALAC_BASE/codec'])
+    audio_env.Append(LIBPATH = ['$ALAC_BASE/codec']);
+    audio_env.Append(LIBS = ['alac'])
 
-# About/Config
-env.Append(CPPPATH = ['$ABOUT_BASE/inc'])
-about_srcs = ['$ABOUT_BASE/src/AboutService.cc']
 
 # Platform specific sources
-if env['OS'] == 'android':
-    os_srcs = [ f for f in env.Glob(env['OS'] + '/*.cc') ]
+if audio_env['OS'] == 'android':
+    srcs += [ f for f in audio_env.Glob('$OS/*.cc') ]
 else:
-    os_srcs = [ f for f in env.Glob(env['OS_GROUP'] + '/*.cc') ]
+    srcs += [ f for f in audio_env.Glob('$OS_GROUP/*.cc') ]
+
+
+version_cc = audio_env.GenVersion('version')
+
+libs = []
 
 # Static library
-objs = env.Object(srcs) + env.Object(alac_srcs) + env.Object(about_srcs) + env.Object(os_srcs)
+objs = audio_env.Object(srcs)
+audio_env.Depends(version_cc, objs)
+objs.append(audio_env.Object(version_cc))
+libs.append(audio_env.StaticLibrary('alljoyn_audio', objs))
 
-# Version
-version_cc = env.GenVersion('version')
-env.Depends(version_cc, objs)
-objs.append(env.Object(version_cc))
+# Shared library
+if audio_env.get('LIBTYPE', 'static') != 'static':
+    shobjs = audio_env.SharedObject(srcs)
+    audio_env.Depends(version_cc, shobjs)
+    shobjs.append(audio_env.SharedObject(version_cc))
+    libs.append(audio_env.SharedLibrary('alljoyn_audio', shobjs))
 
-liballjoyn_audio = env.StaticLibrary('alljoyn_audio', objs)
-
-Return ('liballjoyn_audio')
+Return('libs')

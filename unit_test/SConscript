@@ -14,13 +14,17 @@
 
 import os
 
-Import('env')
+Import('audio_env')
 
-if(not(env.has_key('GTEST_DIR'))):
+if not audio_env.has_key('GTEST_DIR'):
     print('GTEST_DIR not specified skipping alljoyn_audio unit test build')
 
+elif commonenv['OS'] == 'darwin' and commonenv['CPU'] in ['arm', 'armv7', 'armv7s']:
+    # do not even try Google test if darwin and arm
+    print 'GTEST_DIR ignored when building for OS=darwin CPU=arm, skipping common unit test build'
+
 else:
-    gtest_env = env.Clone();
+    gtest_env = audio_env.Clone();
     gtest_dir = gtest_env['GTEST_DIR']
     vars = Variables();
     vars.AddVariables(('GTEST_HOME', '', gtest_dir))
@@ -31,16 +35,16 @@ else:
     else:
         gtest_src_base = gtest_dir
 
-    if(env['OS_CONF'] == 'android'):
+    if gtest_env['OS_CONF'] == 'android':
         # Set the ABI based on the CPU
-        if(env['CPU'] == 'arm'):
+        if gtest_env['CPU'] == 'arm':
             android_eabi = 'armeabi'
         else:
             android_eabi = 'x86'
         # Set the CPP PATH based on NDK version
-        if env.subst('$ANDROID_NDK_VERSION') in [ '8b', '8c', '8d' ]:
+        if gtest_env.subst('$ANDROID_NDK_VERSION') in [ '8b', '8c', '8d' ]:
             android_cpp_path = '$ANDROID_NDK/sources/cxx-stl/gnu-libstdc++/4.6'
-        elif env.subst('$ANDROID_NDK_VERSION') in [ '7',  '8']:
+        elif gtest_env.subst('$ANDROID_NDK_VERSION') in [ '7',  '8']:
             android_cpp_path = '$ANDROID_NDK/sources/cxx-stl/gnu-libstdc++'
         else:
             print 'common unit test build requires NDK v7 or newer'
@@ -49,10 +53,10 @@ else:
         android_cpp_path = None
 
     # tr1::tuple is not avalible for android or darwin
-    if(env['OS_CONF'] == 'android' or env['OS_CONF'] == 'darwin'):
+    if gtest_env['OS_CONF'] == 'android' or gtest_env['OS_CONF'] == 'darwin':
         gtest_env.Append(CPPDEFINES = ['GTEST_HAS_TR1_TUPLE=0'])
     # clone() library function is NOT available on android-x86
-    if(env['OS_CONF'] == 'android' and env['CPU'] == 'x86'):
+    if gtest_env['OS_CONF'] == 'android' and gtest_env['CPU'] == 'x86':
         gtest_env.Append(CPPDEFINES = ['GTEST_HAS_CLONE=0'])
     #we compile with no rtti and we are not using exceptions. 
     gtest_env.Append(CPPDEFINES = ['GTEST_HAS_RTTI=0'])
@@ -62,9 +66,9 @@ else:
     if gtest_dir != '/usr':
         gtest_env.Append(CPPPATH = [ gtest_env.Dir('$GTEST_DIR/include') ])
 
-    if(env['OS_CONF'] == 'android'):
+    if gtest_env['OS_CONF'] == 'android':
         # Android include paths
-        gtest_env.Append(CPPPATH=['$ANDROID_NDK/platforms/android-$ANDROID_API_LEVEL_NDK/arch-%s/usr/include' % env['CPU'],
+        gtest_env.Append(CPPPATH=['$ANDROID_NDK/platforms/android-$ANDROID_API_LEVEL_NDK/arch-%s/usr/include' % gtest_env['CPU'],
                                   #Using GNU STL instead of STLPORT
                                   '%s/include' % android_cpp_path,
                                   '%s/include/backward' % android_cpp_path,
@@ -73,9 +77,9 @@ else:
     gtest_obj = gtest_env.StaticObject(target = 'gtest-all', source = [ '%s/src/gtest-all.cc' % gtest_src_base ])
     gtest_env.StaticLibrary(target = 'gtest', source = gtest_obj)
 
-    test_src = env.Glob('*.cc')
+    test_src = gtest_env.Glob('*.cc')
     
-    unittest_env = env.Clone()
+    unittest_env = gtest_env.Clone()
 
     gtest_dir = unittest_env['GTEST_DIR']
     if gtest_dir != '/usr':
@@ -84,9 +88,9 @@ else:
     # Unit tests can use private headers
     unittest_env.Append(CPPPATH = [env.Dir('#src')])
 
-    if(env['OS_CONF'] == 'android'):
+    if unittest_env['OS_CONF'] == 'android':
         # Android include paths
-        unittest_env.Append(CPPPATH=['$ANDROID_NDK/platforms/android-$ANDROID_API_LEVEL_NDK/arch-%s/usr/include' % env['CPU'],
+        unittest_env.Append(CPPPATH=['$ANDROID_NDK/platforms/android-$ANDROID_API_LEVEL_NDK/arch-%s/usr/include' % unittest_env['CPU'],
                                      #Using GNU STL instead of STLPORT
                                      '%s/include' % android_cpp_path,
                                      '%s/include/backward' % android_cpp_path,
@@ -98,16 +102,16 @@ else:
     unittest_env.Append(CPPDEFINES = ['GTEST_HAS_RTTI=0'])
 
     # tr1::tuple is not avalible for android or darwin
-    if(env['OS_CONF'] == 'android' or env['OS_CONF'] == 'darwin'):
+    if unittest_env['OS_CONF'] == 'android' or unittest_env['OS_CONF'] == 'darwin':
         unittest_env.Append(CPPDEFINES = ['GTEST_HAS_TR1_TUPLE=0'])
-    if(env['OS_CONF'] == 'android' and env['CPU'] == 'x86'):
+    if unittest_env['OS_CONF'] == 'android' and unittest_env['CPU'] == 'x86':
         unittest_env.Append(CPPDEFINES = ['GTEST_HAS_CLONE=0'])
     #gtest library file is placed on folder above the the object files.
     unittest_env.Append(LIBPATH = ['./'])
 
     #the linker must be able to find stlport for android
-    if(env['OS_CONF'] == 'android'):
-        unittest_env.Append(LIBPATH = ['$ANDROID_NDK/platforms/android-$ANDROID_API_LEVEL_NDK/arch-%s/usr/lib' % env['CPU']])
+    if unittest_env['OS_CONF'] == 'android':
+        unittest_env.Append(LIBPATH = ['$ANDROID_NDK/platforms/android-$ANDROID_API_LEVEL_NDK/arch-%s/usr/lib' % unittest_env['CPU']])
     unittest_env.Prepend(LIBS = ['gtest'])
 
     obj = unittest_env.Object(test_src);

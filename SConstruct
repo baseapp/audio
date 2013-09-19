@@ -17,6 +17,27 @@ import os
 # include the core
 env = SConscript('../../build_core/SConscript')
 
-# Add/remove projects from build
+vars = Variables()
+vars.Add('BINDINGS', 'Bindings to build (comma separated list): cpp, java', 'cpp,java')
+vars.Add(EnumVariable('BUILD_SERVICES_SAMPLES',
+                      'Build the services samples.',
+                      'on',
+                      allowed_values = ['on', 'off']))
+vars.Add(PathVariable('ALLJOYN_DISTDIR',
+                      'Directory containing a built AllJoyn Core dist directory.',
+                      os.environ.get('ALLJOYN_DISTDIR')))
+vars.Update(env)
+Help(vars.GenerateHelpText(env))
+
+if env.get('ALLJOYN_DISTDIR'):
+    # normalize ALLJOYN_DISTDIR first
+    env['ALLJOYN_DISTDIR'] = env.Dir('$ALLJOYN_DISTDIR')
+    env.Append(CPPPATH = [ env.Dir('$ALLJOYN_DISTDIR/cpp/inc'),
+                           env.Dir('$ALLJOYN_DISTDIR/about/inc') ])
+    env.Append(LIBPATH = [ env.Dir('$ALLJOYN_DISTDIR/cpp/lib'),
+                           env.Dir('$ALLJOYN_DISTDIR/about/lib') ])
+
+env['bindings'] = set([ b.strip() for b in env['BINDINGS'].split(',') ])
+
 env.SConscript('SConscript')
 

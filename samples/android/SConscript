@@ -12,39 +12,36 @@
 #    See the license for the specific language governing permissions and
 #    limitations under the license.
 
-Import('env')
+Import('samples_env')
 
 # Set the ABI based on the CPU
-if(env['CPU'] == 'arm'):
+if samples_env['CPU'] == 'arm':
     android_eabi = 'armeabi'
 else:
     android_eabi = 'x86'
 
-# The return value is the collection of files installed in the build destination.
-returnValue = []
+samples_env.Append(LIBS = ['OpenSLES'])
+
 
 # Sink sample
-sink_srcs = env.Glob('Sink/jni/*.cc')
-sink_objs = env.SharedObject(sink_srcs)
-libAllJoynAudioSink = env.SharedLibrary('AllJoynAudioSink', sink_objs)
+sink_srcs = samples_env.Glob('Sink/jni/*.cc')
+sink_objs = samples_env.SharedObject(sink_srcs)
+libAllJoynAudioSink = samples_env.SharedLibrary('AllJoynAudioSink', sink_objs)
 
-returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples/Sink/libs/%s' % android_eabi, libAllJoynAudioSink)
-returnValue += env.Install('$AUDIO_CPP_DISTDIR/inc/alljoyn/about', ['$ABOUT_BASE/inc/alljoyn/about/AboutService.h', 
-                                                                    '$ABOUT_BASE/inc/alljoyn/about/PropertyStore.h'])
+samples_env.Install('$AUDIO_DISTDIR/samples/Sink/libs/%s' % android_eabi, libAllJoynAudioSink)
 
 # Source library
-source_srcs = env.Glob('Source/Library/jni/*.cc')
-source_objs = env.SharedObject(source_srcs)
-libeasy_alljoyn_audio_service = env.SharedLibrary('easy_alljoyn_audio_service', source_objs)
-returnValue += env.Install('$AUDIO_JAVA_DISTDIR/lib', libeasy_alljoyn_audio_service)
+source_srcs = samples_env.Glob('Source/Library/jni/*.cc')
+source_objs = samples_env.SharedObject(source_srcs)
+libeasy_alljoyn_audio_service = samples_env.SharedLibrary('easy_alljoyn_audio_service', source_objs)
+samples_env.Install('$AUDIO_DISTDIR/lib', libeasy_alljoyn_audio_service)
 
-alljoynaudioservicelibrary_classes = env.Java('$CLASSDIR', source = ['Source/Library/src'], JAVACLASSPATH=env.subst('$JAVACLASSPATH'))
-returnValue += env.Jar('$JARDIR/alljoynaudioservicelibrary.jar', source = [alljoynaudioservicelibrary_classes])
+alljoynaudioservicelibrary_classes = samples_env.Java('$CLASSDIR', source = ['Source/Library/src'])
+samples_env.Jar('$AUDIO_DISTDIR/jar/alljoynaudioservicelibrary.jar', source = [alljoynaudioservicelibrary_classes])
 
 # Source sample
-returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples/Source/Library/bin', '$JARDIR/alljoynaudioservicelibrary.jar')
-returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples/Source/Library/libs/%s' % android_eabi, '$AUDIO_JAVA_DISTDIR/lib/libeasy_alljoyn_audio_service.so')
+samples_env.Install('$AUDIO_DISTDIR/samples/Source/Library/bin', '$AUDIO_DISTDIR/jar/alljoynaudioservicelibrary.jar')
+samples_env.Install('$AUDIO_DISTDIR/samples/Source/Library/libs/%s' % android_eabi, '$AUDIO_DISTDIR/lib/libeasy_alljoyn_audio_service.so')
 
-#returnValue += env.Install('$AUDIO_JAVA_DISTDIR/samples', 'README.txt')
+#samples_env.Install('$AUDIO_JAVA_DISTDIR/samples', 'README.txt')
 
-Return('returnValue')
