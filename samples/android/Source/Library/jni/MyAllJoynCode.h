@@ -29,7 +29,7 @@
 class MyAllJoynCode : public ajn::services::SinkSearcher, public ajn::services::SinkListener  {
   public:
     MyAllJoynCode(JavaVM* vm, jobject jobj) : vm(vm), jobj(jobj),
-        mDataSourcePath(NULL), mBusAttachment(NULL), mSinkPlayer(NULL),
+        mBusAttachment(NULL), mSinkPlayer(NULL),
         mCurrentDataSource(NULL), isMuted(false), wasStopped(true)  { };
 
     ~MyAllJoynCode() {
@@ -53,6 +53,8 @@ class MyAllJoynCode : public ajn::services::SinkSearcher, public ajn::services::
 
     void Stop();
 
+    void Reset();
+
     void ChangeVolume(float value);
 
     void Mute();
@@ -72,12 +74,8 @@ class MyAllJoynCode : public ajn::services::SinkSearcher, public ajn::services::
     void SinkRemoved(const char*name, bool lost);
 
   private:
-    void SetDataSourceHelper();
-
-  private:
     JavaVM* vm;
     jobject jobj;
-    char* mDataSourcePath;
     /* Static data */
     qcc::String wellKnownName;
     ajn::BusAttachment* mBusAttachment;

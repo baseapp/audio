@@ -110,6 +110,16 @@ JNIEXPORT void JNICALL Java_org_alljoyn_services_audio_AllJoynAudioServiceMediaP
 JNIEXPORT void JNICALL Java_org_alljoyn_services_audio_AllJoynAudioServiceMediaPlayer_Stop(JNIEnv* env, jobject jobj) {
     if (myAllJoynCode != NULL) myAllJoynCode->Stop();
 }
+
+/*
+ * Class:     org_alljoyn_services_audio_AllJoynAudioServiceMediaPlayer
+ * Method:    Reset
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_alljoyn_services_audio_AllJoynAudioServiceMediaPlayer_Reset(JNIEnv* env, jobject jobj) {
+    if (myAllJoynCode != NULL) myAllJoynCode->Reset();
+}
+
 /*
  * Class:     org_alljoyn_services_audio_AllJoynAudioServiceMediaPlayer
  * Method:    ChangeVolume

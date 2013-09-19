@@ -59,6 +59,7 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
 	private static final int CHANGE_VOLUME = 7;
 	private static final int MUTE_VOLUME = 8;
 	private static final int REFRESH_SINKS = 9;
+	private static final int RESET = 10;
 	private static final int RELEASE = -1;
 
 	/*
@@ -86,8 +87,11 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
 	/** Native jni call to pause sending audio. */
 	private native void Pause();
 	
-	/** Native jni call to stop sending audio and reset variables. */
+	/** Native jni call to stop sending audio. */
 	private native void Stop();
+
+	/** Native jni call to stop sending audio and reset variables. */
+	private native void Reset();
 	
 	/** Native jni call to change volume on all added Sinks. */
 	private native void ChangeVolume(float volume);
@@ -249,7 +253,7 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     public void reset() {
     	super.reset();
     	isPlayingOverStream = false;
-    	mBusHandler.sendEmptyMessage(STOP_STREAMING);
+    	mBusHandler.sendEmptyMessage(RESET);
     }
     
     /**
@@ -330,6 +334,9 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     			break;
     		case STOP_STREAMING:
     			Stop();
+    			break;
+    		case RESET:
+    			Reset();
     			break;
     		case CHANGE_VOLUME:
     			ChangeVolume(data.getFloat("volume"));

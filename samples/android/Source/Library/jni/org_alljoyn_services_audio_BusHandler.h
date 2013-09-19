@@ -99,6 +99,14 @@ JNIEXPORT void JNICALL Java_org_alljoyn_services_audio_AllJoynAudioServiceMediaP
 
 /*
  * Class:     org_alljoyn_services_audio_AllJoynAudioServiceMediaPlayer
+ * Method:    Reset
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_alljoyn_services_audio_AllJoynAudioServiceMediaPlayer_Reset
+    (JNIEnv *, jobject);
+
+/*
+ * Class:     org_alljoyn_services_audio_AllJoynAudioServiceMediaPlayer
  * Method:    initialize
  * Signature: (F)V
  */

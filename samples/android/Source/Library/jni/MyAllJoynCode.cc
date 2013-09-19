@@ -58,32 +58,21 @@ void MyAllJoynCode::Prepare(const char* packageName) {
     }
 }
 
-void MyAllJoynCode::SetDataSource(const char* dataSource)
+void MyAllJoynCode::SetDataSource(const char* dataSourcePath)
 {
-    if (mDataSourcePath != NULL)
-        delete mDataSourcePath;
-    mDataSourcePath = strdup(dataSource);
-    SetDataSourceHelper();
-}
+    if (mCurrentDataSource) {
+        LOGE("Must call Reset before calling SetDataSource again");
+        return;
+    }
 
-void MyAllJoynCode::SetDataSourceHelper()
-{
-    uint8_t strLenSource = strlen(mDataSourcePath);
-    bool isWavFile = strLenSource > 4 && 0 == strncmp(mDataSourcePath + strLenSource - 4, ".wav", 4);
-    if (mCurrentDataSource != NULL) {
-        if (isWavFile) {
-            ((WavDataSource*)mCurrentDataSource)->Close();
-        }
+    mCurrentDataSource = new WavDataSource();
+    if (!((WavDataSource*)mCurrentDataSource)->Open(dataSourcePath)) {
+        LOGE("Data source is not a WAV file");
+        delete mCurrentDataSource;
+        mCurrentDataSource = NULL;
+        return;
     }
-    if (isWavFile) {
-        if (mCurrentDataSource == NULL)
-            mCurrentDataSource = new WavDataSource();
-    }
-    if (mCurrentDataSource != NULL) {
-        mSinkPlayer->SetDataSource(mCurrentDataSource);
-        mSinkPlayer->CloseAllSinks();
-        wasStopped = true;
-    }
+    mSinkPlayer->SetDataSource(mCurrentDataSource);
 }
 
 void MyAllJoynCode::AddSink(const char*name, const char*path, uint16_t port)
@@ -100,10 +89,6 @@ void MyAllJoynCode::RemoveSink(const char*name)
 
 void MyAllJoynCode::Start()
 {
-    int8_t strLenSource = strlen(mDataSourcePath);
-    if (strLenSource > 4 && 0 == strncmp(mDataSourcePath + strLenSource - 4, ".wav", 4)) {
-        ((WavDataSource*)mCurrentDataSource)->Open(mDataSourcePath);
-    }
     mSinkPlayer->Play();
     if (wasStopped)
         mSinkPlayer->OpenAllSinks();
@@ -121,6 +106,18 @@ void MyAllJoynCode::Stop()
     if (mSinkPlayer->IsPlaying() && !wasStopped) {
         mSinkPlayer->CloseAllSinks();
         wasStopped = true;
+    }
+}
+
+void MyAllJoynCode::Reset()
+{
+    mSinkPlayer->CloseAllSinks();
+    wasStopped = true;
+
+    if (mCurrentDataSource) {
+        ((WavDataSource*)mCurrentDataSource)->Close();
+        delete mCurrentDataSource;
+        mCurrentDataSource = NULL;
     }
 }
 
