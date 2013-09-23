@@ -39,7 +39,7 @@ if not audio_env.has_key('_ALLJOYNCORE_'):
 
 vars = Variables()
 vars.Add(PathVariable('ALAC_BASE', 'Base directory of ALAC', os.environ.get('ALAC_BASE')))
-vars.Update(env)
+vars.Update(audio_env)
 
 Help(vars.GenerateHelpText(audio_env))
 
