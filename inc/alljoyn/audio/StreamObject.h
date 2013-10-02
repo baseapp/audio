@@ -102,6 +102,12 @@ class StreamObject : public ajn::BusObject {
      *                      epoch.
      */
     void SleepUntilTimeNanos(uint64_t timeNanos);
+
+    /**
+     * @internal Closes the stream as if the owner had sent a Close
+     * method call.
+     */
+    void Close();
     /// @endcond
 
   private:

@@ -257,6 +257,30 @@ void StreamObject::Close(const InterfaceDescription::Member* member, Message& ms
     REPLY_OK();
 }
 
+void StreamObject::Close() {
+    if (mOwner == NULL) {
+        QCC_DbgHLPrintf(("Close method called but stream is not open"));
+        return;
+    }
+
+    mPortsMutex->Lock();
+    for (std::vector<PortObject*>::iterator it = mPorts.begin(); it != mPorts.end(); ++it) {
+        PortObject* p = *it;
+        p->EmitOwnershipLostSignal("");
+        p->Cleanup();
+    }
+    mPortsMutex->Unlock();
+
+    uint32_t oldSessionId = mSessionId;
+    mSessionId = 0;
+    free((void*)mOwner);
+    mOwner = NULL;
+
+    if (oldSessionId) {
+        bus->LeaveSession(oldSessionId);
+    }
+}
+
 void StreamObject::SetTime(const InterfaceDescription::Member* member, Message& msg) {
     GET_ARGS(1);
 

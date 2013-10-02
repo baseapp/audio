@@ -635,7 +635,7 @@ ThreadReturn AudioSinkObject::AudioOutputThread(void* arg) {
         size_t size = apo->GetBufferSize();
         apo->mBuffers.pop_front();
 
-        size_t sizeToRead = apo->mAudioDeviceBufferSize;
+        size_t sizeToRead = apo->mAudioDeviceBufferSize * apo->mBytesPerFrame;
         uint32_t framesWanted = apo->mAudioDevice->GetFramesWanted();
         if (framesWanted > 0) {
             size_t bytesWanted = framesWanted * apo->mBytesPerFrame;
