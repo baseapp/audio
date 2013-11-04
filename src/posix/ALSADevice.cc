@@ -58,6 +58,7 @@ ALSADevice::~ALSADevice() {
 bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChannels, uint32_t& bufferSize) {
     int err;
 
+
     if (mAudioDeviceHandle != NULL) {
         QCC_LogError(ER_FAIL, ("Open: already open"));
         return false;
@@ -116,7 +117,7 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
         return false;
     }
 
-    if ((err = snd_pcm_hw_params_set_rate_near(mAudioDeviceHandle, hw_params, &sampleRate, 0)) < 0) {
+    if ((err = snd_pcm_hw_params_set_rate(mAudioDeviceHandle, hw_params, sampleRate, 0)) < 0) {
         QCC_LogError(ER_OS_ERROR, ("cannot set sample rate (%s)", snd_strerror(err)));
         AUDIO_CLEANUP();
         return false;
@@ -213,6 +214,8 @@ bool ALSADevice::Open(const char* format, uint32_t sampleRate, uint32_t numChann
         GetVolume(mVolume);
         StartAudioMixerThread();
     }
+
+	printf("format %10s sample rate %u chan %u \n", format,sampleRate, numChannels);
 
     mMutex->Unlock();
     return true;
@@ -338,8 +341,15 @@ bool ALSADevice::Write(const uint8_t* buffer, uint32_t bufferSizeInFrames) {
     if (!mAudioDeviceHandle)
         return false;
 
+	//static uint32_t total=0;
+
     mMutex->Lock();
     snd_pcm_sframes_t err = snd_pcm_writei(mAudioDeviceHandle, buffer, bufferSizeInFrames);
+    
+    //total+=bufferSizeInFrames;
+    
+    //printf("Total %u\n", total);
+    
     if (err < 0)
         err = snd_pcm_recover(mAudioDeviceHandle, err, 0);
     if (err < 0)

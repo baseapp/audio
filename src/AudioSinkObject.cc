@@ -258,6 +258,8 @@ void AudioSinkObject::DoConnect(const InterfaceDescription::Member* member, Mess
     mSampleRate = rateArg->v_uint16;
     mChannelsPerFrame = channelsArg->v_byte;
     const char* format = formatArg->v_string.str;
+	
+	printf("Rate: %u Chansperfram: %u Format %10s", mSampleRate, mChannelsPerFrame, format);
 
     uint32_t bitsPerChannel;
     if (strcmp(format, "s16le") == 0) {
