@@ -79,7 +79,7 @@ else:
         unittest_env.Append(CPPPATH = [gtest_dir + '/include'])
 
     # Unit tests can use private headers
-    unittest_env.Append(CPPPATH = [audio_env.Dir('#src')])
+    unittest_env.Append(CPPPATH = [audio_env.Dir('..').srcnode()])
 
     # we compile with no rtti and we are not using exceptions.
     unittest_env.Append(CPPDEFINES = ['GTEST_HAS_RTTI=0'])
