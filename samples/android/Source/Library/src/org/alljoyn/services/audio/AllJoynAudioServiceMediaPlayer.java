@@ -138,7 +138,7 @@ public class AllJoynAudioServiceMediaPlayer extends MediaPlayer {
     	//Should stream over alljoyn
     	//Check if the path is for a wav file, if so pass it on down and let it stream as is
     	mDataSourcePath = path;
-    	if(path.endsWith(".wav")) {
+    	if(path.endsWith(".wav") || path.endsWith(".mp3") ) {
     		mBusHandler.sendMessage(mBusHandler.obtainMessage(SET_DATA_SOURCE, path));
     	}
     	try{
