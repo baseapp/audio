@@ -54,6 +54,7 @@ bool Mp3DataSource::Open(FILE* inputFile) {
     }
 
     mInputFile = inputFile;
+    mp3_decoder_t temp; // for total frames
     
     bytes_left = lseek(fileno(mInputFile), 0, SEEK_END);
     file_data = mmap(0, bytes_left, PROT_READ, MAP_PRIVATE, fileno(mInputFile), 0);
@@ -76,7 +77,10 @@ bool Mp3DataSource::Open(FILE* inputFile) {
         mChannelsPerFrame=info.channels;
         mBytesPerFrame = (mBitsPerChannel >> 3) * mChannelsPerFrame;
         mInputDataStart=0;
-        mInputSize=9999999999; //TODO
+        temp = mp3_create();
+        
+        mInputSize=mp3_total_frames((void**)temp, file_data, bytes_left+100, NULL, &info);
+        printf("\nTotal size=%u\n", mInputSize);
         //add to queue
         initQueue(&wav_buffer, WAV_CIRCULAR_BUFFER_SIZE);
         addToQueue(&wav_buffer, (uint8_t *)sample_buf, info.audio_bytes);
@@ -128,7 +132,7 @@ size_t Mp3DataSource::ReadData(uint8_t* buffer, size_t offset, size_t length) {
             //printf("ReadData length=%d lengthQueue=%d, adding to q\n", length, lengthQueue(&wav_buffer));
             stream_pos += frame_size;
             bytes_left -= frame_size;
-            frame_size = mp3_decode((void**)mp3, stream_pos, bytes_left, sample_buf, NULL);
+            frame_size = mp3_decode((void**)mp3, stream_pos, bytes_left, sample_buf, &info);
             if(frame_size==0)
             {
                 //printf("ReadData frame_size=0 break\n");
