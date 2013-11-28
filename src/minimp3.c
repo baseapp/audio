@@ -21,6 +21,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+/* Modified 2013 tavish added function to calculate total number of frames in file */
+
 #include "libc.h"
 #include <alljoyn/audio/minimp3.h>
 
@@ -2653,4 +2655,83 @@ int mp3_decode(mp3_decoder_t *dec, void *buf, int bytes, signed short *out, mp3_
         info->audio_bytes = size;
     }
     return s->frame_size;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static int mp3_process_frame(
+    mp3_context_t *s,
+    int16_t *out_samples, int *data_size,
+    uint8_t *buf, int buf_size
+) {
+    uint32_t header;
+    int out_size;
+    int extra_bytes = 0;
+    int nb_frames, nb_granules;
+
+retry:
+    if(buf_size < HEADER_SIZE)
+        return -1;
+
+    header = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
+    if(mp3_check_header(header) < 0){
+        buf++;
+        buf_size--;
+        extra_bytes++;
+        goto retry;
+    }
+
+    if (decode_header(s, header) == 1) {
+        s->frame_size = -1;
+        return -1;
+    }
+
+    if(s->frame_size<=0 || s->frame_size > buf_size){
+        return -1;  // incomplete frame
+    }
+    if(s->frame_size < buf_size) {
+        buf_size = s->frame_size;
+    }
+
+    if (s->lsf) 
+    {
+        nb_granules = 1;
+    }
+    else 
+    {
+        nb_granules = 2;
+    }
+
+    nb_frames = nb_granules*18;
+    out_size = nb_frames * 32 * sizeof(uint16_t) * s->nb_channels;
+    if(out_size>=0)
+        *data_size = out_size;
+    // else: Error while decoding MPEG audio frame.
+    s->frame_size += extra_bytes;
+    return out_size;
+}
+
+//bytes
+int mp3_total_frames(mp3_decoder_t *dec, void *buf, int bytes, signed short *out, mp3_info_t *info) {
+    int res, size = -1;
+    mp3_context_t *s = (mp3_context_t*) dec;
+
+    int total_frames=0;
+
+    if (!s) return 0;
+    
+    while(bytes>0)
+    {
+      size = -1;
+      res = mp3_process_frame(s, (int16_t*) out, &size, buf, bytes);
+      if(res<0)
+        continue;
+      if(s->frame_size<=0)
+        break;
+      if(size>0)
+        total_frames+=size;
+      bytes-=(size_t)buf+(size_t)s->frame_size;
+      buf=(uint8_t*)buf+(size_t)s->frame_size;
+    }
+  return total_frames;
 }
